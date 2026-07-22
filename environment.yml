@@ -1,0 +1,14 @@
+name: postfire-peakflow-rf
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - scipy
+  - seaborn
+  - pip
+  - pip:
+      - shap
