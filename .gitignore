@@ -1,0 +1,18 @@
+# local claude code instructions, do not publish 
+CLAUDE.md
+#Draft Manuscript, do not publish
+PostFireFloodDrivers_15June_clean_jtk - Copy.docx
+
+# the usual cruft 
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+ModelRun*/
+Seeds/
+Sensitivity/
+VariableOptimization/
+*.png
+.DS_Store
+Thunbs.db
+.idea/
