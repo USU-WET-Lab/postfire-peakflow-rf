@@ -1,8 +1,10 @@
-## Haley Canham ##
-## Sep 2025 ##
-## RF model runs with set seeds ##
+"""
+05_run_final_model.py - Step 5 of the post-fire peak flow pipeline
 
-## libaries
+"""
+
+
+#---------------------------------------------IMPORTS---------------------------------------------------------------------------------------------
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
@@ -19,7 +21,10 @@ import os
 import math
 from sklearn import metrics
 
-metric = 'PeakArea' #Peak, Rise, DurabvThresh, VolabvThresh
+#-------------------------------------------CONFIG: only edit this block ---------------------------------------------------------------------------
+
+
+metric = 'PeakArea' 
 withholding = '80_20'
 print(metric, metric, withholding)
 # save_folder = '{}_{}'.format(metric,ARI)
@@ -200,33 +205,4 @@ for x in range (0,100):
     # plt.show()
     plt.close()
     #
-    # # # fig = shap.summary_plot(shap_values, X_test, max_display=20, show=False)
-    # # fig = shap.summary_plot(shap_values, X, max_display=20, show=False)
-    # # plt.gcf().set_size_inches(10, 12)
-    # # ax = plt.gca()
-    # # ax.set_xlim(-0.2,0.2)
-    # # plt.tight_layout()
-    # # plt.savefig('{}\\RandomForest\\04Sep25\\PostFireMultipliers\\{}\\{}\\Allshap\\{}\\Summary_{}_{}_xlim.png'.format(workingPath, metric_short, ARI, scenario, metric, ARI))
-    # # # plt.show()
-    # # plt.close()
-    #
-    # # Generate a SHAP waterfall plot for an individual prediction
-    # for i in range(0, 10):
-    # # for i in range(0, len(shap_values)):
-    #
-    #     ax = plt.gca()
-    #     shap.plots.waterfall(shap_values[i], max_display=10, show=False)
-    #     plt.gcf().set_size_inches(10, 8)
-    #     plt.tight_layout()
-    #     plt.savefig('{}\\RandomForest\\RFModels\\StormPercentileVersions\\PostFire\\{}\\Plots_{}\\Seed_{}\\Waterfalls\\Waterfalls_{}_{}.png'.format(workingPath, metric_short, scenario, x, metric, i))
-    #     # plt.show()
-    #     plt.close()
-    #
-    # for f in features:
-    #
-    #     ax = plt.gca()
-    #     shap.plots.scatter(shap_values[:, f], show=False)
-    #     plt.gcf().set_size_inches(10, 8)
-    #     plt.tight_layout()
-    #     plt.savefig('{}\\RandomForest\\RFModels\\StormPercentileVersions\\PostFire\\{}\\Plots_{}\\Seed_{}\\shapPD\\PD_{}.png'.format(workingPath,metric_short, scenario, x, f))
-    #     plt.close()
+  

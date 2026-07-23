@@ -1,4 +1,3 @@
-# Haley Canham / Tanner Oman
 """
 01_make_seeds.py - Step 1 of the post-fire peak flow pipeline 
 
@@ -31,11 +30,6 @@ from pathlib import Path
 
 #--------------------------------------- config: only edit this block ---------------------------------------------------------------------------
 
-ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / 'data'
-OUTPUTS = ROOT / 'outputs'
-
-SOURCE_TABLE = "RF_AttributeTable_PeakMag_OptimizedModel.csv"  # source of GAGE_IDs to split into train/test seeds
 N_SEEDS = 100  # number of random train/test splits to generate
 WITHOLD_FRACTION = 0.2  # fraction of watersheds to withold for testing (e.g., 0.1 = 10% of watersheds are held out for testing)
 WITHOLDING = "80_20"  # string to describe the witholding fraction (e.g., "90_10" for 10% held out, "80_20" for 20% held out)

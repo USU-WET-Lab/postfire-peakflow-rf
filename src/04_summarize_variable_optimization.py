@@ -1,13 +1,17 @@
-## Haley Canham ##
-## Sep 2025 ##
-## Create summary files of all seeds ##
+"""
+04_summarize_variable_optimization.py - Step 4 of the post-fire peak flow pipeline
+"""
 
-## libaries
+#---------------------------------------------IMPORTS---------------------------------------------------------------------------------------------
 import numpy as np
 import pandas as pd
 import random
 import os
 import matplotlib.pyplot as plt
+from pathlib import Path
+
+#-------------------------------------------CONFIG: only edit this block ---------------------------------------------------------------------------
+
 
 working = 'C:\\Users\\A02343538\\Box\\MyResearch\\Chap3'
 workingPath = '{}\\RandomForest\\RFModels\\UpdatedModelRuns_Spring26\\Peak\\Full\\VariableOptimization'.format(working)
@@ -104,33 +108,6 @@ for var in range(1, 45):
     rankings_vars_avg = rankings_vars_df.mean()
     rankings_vars_avg.sort_values(inplace=True)
     rankings_vars_avg.to_csv('{}\\VariableRankings\\VariableRankings_vars{}.csv'.format(workingPath, var))
-# rankings_vals = pd.DataFrame()
-# for x in rankings.Seed_0:
-#     ranks = []
-#     for seed in seeds_list:
-#         index_val = rankings.index[rankings[seed] == x].tolist()
-#         ranks.append(index_val[0])
-#     rankings_vals[x] = ranks
-#
-# rankings_avg = rankings_vals.mean()
-# rankings_avg = rankings_avg.sort_values()
-# rankings_avg.to_csv('{}\\RandomForest\\RFModels\\Optimization\\ValidationWitholdings\\{}\\{}\\{}\\ImportanceRanks_avg.csv'.format(workingPath,scenario, metric, witholding))
-
-# # get average shap value rankings
-# shap_rankings = pd.DataFrame()
-# for x in seeds_list:
-#     shap_file = '{}\\RandomForest\\RFModels\\Optimization\\ValidationWitholdings\\{}\\{}\\{}\\{}\\ShapValues.csv'.format(workingPath,scenario,metric, witholding,x)
-#     shap = pd.read_csv(shap_file, index_col = 0)
-#     shap_abs = shap.abs()
-#     shap_abs_mean = shap_abs.mean()
-#     shap_abs_mean = shap_abs_mean.to_frame()
-#     shap_rankings[x] = shap_abs_mean[0]
-# shap_rank = shap_rankings.rank(ascending=False)
-# shap_rank.to_csv('{}\\RandomForest\\RFModels\\Optimization\\ValidationWitholdings\\{}\\{}\\{}\\ShapRank.csv'.format(workingPath,scenario, metric, witholding))
-# shap_rank_T = shap_rank.T
-# shap_ranks_avg = shap_rank_T.mean()
-# shap_ranks_avg = shap_ranks_avg.sort_values()
-# shap_ranks_avg.to_csv('{}\\RandomForest\\RFModels\\Optimization\\ValidationWitholdings\\{}\\{}\\{}\\ShapRanks_avg.csv'.format(workingPath,scenario, metric, witholding))
 
 
 
