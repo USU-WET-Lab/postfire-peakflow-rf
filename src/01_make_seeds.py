@@ -12,9 +12,10 @@ Run this once for each witholding percentage you want to compare in step 02 (cha
 Note: splits are drawn randomly. Leave RANDOM_SEED as None for fresh random splits each re-run, or set it to any interger to make 
 splits re-producible run-to-run. 
 
-Reads: data/
+Reads: data/<SOURCE_TABLE> (for the GAGE_ID column)
 
-Writes: 
+Writes: outputs/seeds/<WITHOLDING>/seed_<x>/wats_train.csv
+        outputs/seeds/<WITHOLDING>/seed_<x>/wats_test.csv
 
 To Run: python src/01_make_seeds.py
 
@@ -30,6 +31,10 @@ from pathlib import Path
 
 #--------------------------------------- config: only edit this block ---------------------------------------------------------------------------
 
+ROOT = Path(__file__).resolve().parent.parent
+DATA = ROOT / "data"
+OUTPUTS = ROOT / "outputs"
+SOURCE_TABLE = "RF_AttributeTable_PeakMag_OptimizedModel.csv"
 N_SEEDS = 100  # number of random train/test splits to generate
 WITHOLD_FRACTION = 0.2  # fraction of watersheds to withold for testing (e.g., 0.1 = 10% of watersheds are held out for testing)
 WITHOLDING = "80_20"  # string to describe the witholding fraction (e.g., "90_10" for 10% held out, "80_20" for 20% held out)

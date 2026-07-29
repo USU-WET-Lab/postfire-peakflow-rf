@@ -26,7 +26,7 @@ def evaluate(y_true, y_pred):
     mse = mean_squared_error(y_true, y_pred)
     return {"mse": mse, "rmse": np.sqrt(mse), "R2": r2_score(y_true, y_pred)}
 
-def ranked_importances(model, feature_name) -> pd.DataFrame: 
+def ranked_importances(model, feature_names) -> pd.DataFrame: 
     return(pd.DataFrame({"Feature": list(feature_names), 
                         "Importance": model.feature_importances_})
             .sort_values("Importance", ascending = False)
@@ -60,7 +60,7 @@ def plot_predicted_vs_actual(y_true, y_pred, path, back_transform = False):
     plt.close(fig)
 
 def plot_residuals(y_pred, residuals, path): 
-    fig, ax = plt.subplots(fig_size = (5,5))
+    fig, ax = plt.subplots(fig_size = (5, 5))
     ax.scatter(y_pred, residuals, alpha= 0.5)
     ax.axhline(0, color="red", linestyle="--")
     ax.set_xlabel("Predicted")
