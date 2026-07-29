@@ -7,6 +7,12 @@ The spread pf predictions across seeds shows how sensitive the modeled peak flow
 familiar with Individual Conditional Expectation (ICE) plots you will see the resemblance. The key differences are that 
 we create the curve of ONE instance (watershed) and the loop varies the model, not the instance. See step 10 for the 
 complementary, dataset-wide SHAP dependence view. 
+
+Reads:  data/<MODEL_TABLE>, data/<SENSITIVITY_TABLE>
+        outputs/seeds/<WITHOLDING>/Seed_<x>/wats_train.csv
+
+Writes: outputs/sensitivity/sensitivity_predictions_USGS<WATERSHED>.csv
+
 """
 
 
@@ -14,7 +20,7 @@ complementary, dataset-wide SHAP dependence view.
 from pathlib import Path 
 import numpy as np 
 import pandas as pd 
-from rf_utils import rf_fit 
+from rf_utils import fit_rf
 
 #-------------------------------------------------CONFIG--------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent # repo root; auto-derives, no need to edit
@@ -44,12 +50,13 @@ SWEEPS = {
 #----------------------------------------------Scenario construction---------------------------------------------
 def build_sensitivity_set(baseline: pd.DataFrame) -> pd.DataFrame: 
     blocks = [baseline.assign(swept_variable = "baseline", swept_value = np.nan)]
-    for _, base in baseline.iterrows(): 
-        block = pd.concat([base.to_frame().T] * len(values), ignore_index=True)
-        block[feature] = values
-        block["swept_variable"] = feature
-        block["swept_value"] = values
-        blocks.append(block)
+    for feature, values in SWEEPS.items():
+        for _, base in baseline.iterrows(): 
+            block = pd.concat([base.to_frame().T] * len(values), ignore_index=True)
+            block[feature] = values
+            block["swept_variable"] = feature
+            block["swept_value"] = values
+            blocks.append(block)
     return pd.concat(blocks, ignore_index=True)
 
 #-----------------------------------------------main-----------------------------------------------------------------
@@ -72,20 +79,20 @@ def main():
         )[ID_COL].to_list()
 
         # Keep the watershed of interest out of training (predict it out-of-sample).
-        train_ids = [w for w in train_ids if
+        train_ids = [w for w in train_ids if w != WATERSHED]
         train = data[data[ID_COL].isin(train_ids)]
 
         model = fit_rf(train[features], np.log(train[METRIC]), **RF_KWARGS)
         preds[f"pred_seed_{x}"] = np.exp(model.predict(X_scen))   # log -> m3/s/km2
 
     # 4. Summarize the spread across seeds and save one tidy table.
-    scenarios["pred_mean"] = preds.mean(axis
+    scenarios["pred_mean"] = preds.mean(axis = 1)
     scenarios["pred_p05"]  = preds.quantile(0.05, axis=1)
     scenarios["pred_p95"]  = preds.quantile(0.95, axis=1)
 
     out_dir = OUTPUTS / "sensitivity"
-    out_dir.mkdir(parents=True, exist_ok=Tru
-    out_path = out_dir / f"sensitivity_predi
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"sensitivity_predictions_USGS{WATERSHED}.csv
     pd.concat([scenarios, preds], axis=1).to_csv(out_path, index=False)
 
     print(f"USGS{WATERSHED}: {len(scenarios)s -> {out_path}")
