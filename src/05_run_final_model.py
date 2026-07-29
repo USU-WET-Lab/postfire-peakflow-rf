@@ -1,28 +1,62 @@
 """
 05_run_final_model.py - Step 5 of the post-fire peak flow pipeline
 
+Using the optimized feature table from step 04, we train the final model. This step trains one 
+random forest per seed (with the train/test split from step 01) and for each seed: writes 
+performance stats, test predictions, feature importances, two diagnostic plots, and SHAP values. 
+The per-seed outputs from this step feed subsequent summary steps (08, 09, 10). The target 
+is log-transformed for fitting in log space. 
+
+Reads: data / <MODEL_TABLE> 
+       outputs/seeds/<WITHOLDING>/Seed_<x>/wats_train.csv, wats_test.csv
+
+Writes: outputs/model_run/Seed_<x>/stats.csv          (mse, rmse, R2)
+        outputs/model_run/Seed_<x>/predictions.csv    (GAGE_ID, y_test, y_pred; log space)
+        outputs/model_run/Seed_<x>/importances.csv    (Feature, Importance)
+        outputs/model_run/Seed_<x>/shap_values.csv, shap_data.csv
+        outputs/model_run/Seed_<x>/predicted_vs_actual.png, residuals.png
+
+Run: python src/05_run_final_model.py
+
 """
 
 
 #---------------------------------------------IMPORTS---------------------------------------------------------------------------------------------
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-from sklearn import preprocessing
-from sklearn import utils
-from sklearn.metrics import mean_squared_error, r2_score
-import matplotlib.pyplot as plt
-from sklearn.inspection import PartialDependenceDisplay
-import shap
-import random
-import os
-import math
-from sklearn import metrics
+from pathlib import Path
+from rf_utils import (fit_rf, evaluate, ranked_importances, compute_shap,
+                      shap_frames, plot_predicted_vs_actual, plot_residuals)
 
 #-------------------------------------------CONFIG: only edit this block ---------------------------------------------------------------------------
+ROOT    = Path(__file__).resolve().parent.parent   # repo root; auto-derives, no need to edit
+DATA    = ROOT / "data"
+OUTPUTS = ROOT / "outputs"
 
+MODEL_TABLE = "RF_AttributeTable_PeakMag_OptimizedModel.csv"   # final optimized feature set
+METRIC      = "PeakArea"    
+ID_COL      = "GAGE_ID"   
+N_SEEDS     = 100
+WITHOLDING  = "80_20"      
+RF_KWARGS   = dict(n_estimators=100, random_state=42)
+
+# Columns to drop before fitting (kept out of the final model). See note below.
+DROP_COLUMNS = ["ASPECT_NORTHNESS"]
+
+
+#---------------------------------------------MAIN CODE BLOCK-------------------------------------------------------------
+
+def main(): 
+    data = pd.read_csv(DATA / MODEL_TABLE)
+    if DROP_COLUMNS: 
+        data = data.drop(columns = DROP_COLUMNS)
+    features = [c for c in data.columns if c not in (METRIC, ID_COL)]
+
+    for x in range(N_SEEDS): 
+        seed_dir = OUTPUTS / "model_run" / f"Seed_{x}"
+        seed_dir.mkdir(parents= True, exist_ok= True)
+
+        split_dir = 
 
 metric = 'PeakArea' 
 withholding = '80_20'

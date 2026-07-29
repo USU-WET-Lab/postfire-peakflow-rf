@@ -35,94 +35,36 @@ BOUNDS = dict(min_drain_sqkm = 50, min_burned_storm_depth_per = 70,
 
 #--------------------------------------------MAIN CODE BLOCK ---------------------------------------------------------------------------
 
+def main (): 
+    df = pd.read_csv(DATA / SOURCE_TABLE )
+    df = df[df.DRAIN_SQKM >= BOUNDS["min_drained_area_pct"]] & (df.burned_storm_depth_per >=
+                            BOUNDS["min_burned_storm_dept_pct"]) & (df.DaysSinceFire <= BOUNDS["max_days_since_fire"])]
+    features = [c for c in df.columns if c not in (METRIC, ID_COL)]
 
+    out_dir = OUTPUTS / "witholding_optimization" 
+    out_dir.mkdir(exist_ok= True, parents = True)
 
-# ARI = 1
-metric = 'PeakArea' #Peak, Rise, DurabvThresh, VolabvThresh durationabv_1_Area
-# metric_short = 'Peak'
-# scenario = 'OG'
-witholdings = ['50_50', '60_40',  '70_30', '80_20', '90_10']
-# witholdings = ['99_1']
+    for witholding in WITHOLDINGS: 
+        rows = []
+        for x in range(N_SEEDS): 
+            seed_dir = OUTPUTS / "seeds" / witholding / f"Seed_{x}"
+            train_ids = pd.read_csv(seed_dir / "wats_train.csv")[ID_COL].tolist()
+            tests_ids = pd.read_csv(seed_dir / "wats_test.csv")[ID_COL].tolist()
+            train = df[df[ID_COL].isin(train_ids)]
+            test = df[df[ID_COL].isin(test_ids)]
+            if test.empty: 
+                continue
 
-# postfire = 'PostFire'
+            model = fit_rf(train[features], np.log(train[METRIC]), **RF_KWARGS)
+            stats = evaluate(np.log(test[METRIC]), model.predict(test[features]))
+            rows.append({"seed": f"Seed_{x}", "R2": stats["R2"]})
 
+            summary = pd.DataFrame(rows)
+            out_path = out_dir / f"witholding_{witholding}.csv"
+            summary.to_csv(out_path, index = False)
+            print(f"{witholding}: mean R2 = {summary['R2'].mean():.3f}"
+                  f"over {len(summary)} seeds")
 
-workingPath = 'C:\\Users\\A02343538\\Box\\MyResearch\\Chap3'
-data_file = '{}\\RandomForest\\RFModels\\UpdatedModelRuns_Spring26\\Peak\\Full\\RF_AttributeTable_ARI1_Peak_modelbounds_Optimized.csv'.format(workingPath)
-data = pd.read_csv(data_file)
+if __name__ == "__main__": 
+    main()
 
-# chap 3 model bounds: 50km2, 70% burned storm depth, less 3yr post-fire
-data = data[(data.DRAIN_SQKM >= 50)]
-data = data[(data.MTBS_burnedarea_per >= 20)]
-# data = data[data.burned_storm_depth_per > thresh]
-data = data[data.burned_storm_depth_per >= 70]
-# data = data[data.burned_storm_int_per > thresh]
-data = data[data.DaysSinceFire <= 1095]
-
-data = data.drop(columns = ['MTBS_burnedarea_per'])
-
-for witholding in witholdings:
-    print(witholding)#, scenario)
-
-    r2s = []
-    seeds = []
-
-    # loop through each seed
-    # for x in range (0,162):
-    for x in range(0, 100):
-        print(x)
-
-        watersheds_test_file = '{}\\RandomForest\\RFModels\\UpdatedModelRuns_Spring26\\Peak\\Full\\Seeds\\{}\\Seed_{}\\wats_test.csv'.format(workingPath, witholding, x)
-        watersheds_train_file = '{}\\RandomForest\\RFModels\\UpdatedModelRuns_Spring26\\Peak\\Full\\Seeds\\{}\\Seed_{}\\wats_train.csv'.format(workingPath, witholding, x)
-        watersheds_test_df = pd.read_csv(watersheds_test_file)
-        watersheds_train_df = pd.read_csv(watersheds_train_file)
-        watersheds_test = watersheds_test_df.GAGE_ID.to_list()
-        watersheds_train = watersheds_train_df.GAGE_ID.to_list()
-
-        test = data[data.GAGE_ID.isin(watersheds_test)]
-        train = data[data.GAGE_ID.isin(watersheds_train)]
-
-        X_train = train.drop(columns=[metric, 'GAGE_ID'])
-        X_test = test.drop(columns=[metric, 'GAGE_ID'])
-        # X_train = np.log(X_train)
-        # X_test = np.log(X_test)
-        # X = pd.concat([X_train, X_test], axis=0)
-
-        # y_train = train[metric]
-        # y_test = test[metric]
-        y_train = np.log(train[metric])
-        y_test = np.log(test[metric])
-        # y = pd.concat([y_train, y_test], axis=0)
-
-        cols = data.columns.tolist()
-
-        features = X_train.columns.tolist()
-
-        # Create a random forest classifier
-        rf_regressor = RandomForestRegressor(n_estimators=100, random_state=42)
-
-        # Train the classifier
-        rf_regressor.fit(X_train, y_train)
-        # rf_regressor.fit(X, y)
-
-        if X_test.empty == False:
-            # Make predictions on the test set
-            y_pred = rf_regressor.predict(X_test)
-            # y_pred = rf_regressor.predict(X)
-
-            # Evaluate the model
-            mse = mean_squared_error(y_test, y_pred)
-            # mse = mean_squared_error(y, y_pred)
-            rmse = np.sqrt(mse)
-            r2 = r2_score(y_test, y_pred)
-            r2s.append(r2)
-            seeds.append('seed_{}'.format(x))
-            # r2 = r2_score(y, y_pred)
-            print(f"Mean Squared Error: {mse}, RMSE: {rmse}")
-            print(f"R-squared: {r2}")
-            stats_df = pd.DataFrame(list(zip([mse], [rmse], [r2])), columns=['mse', 'rmse', 'R2'])
-            # print(f"R-squared: {r2_score(y, y_pred)}")
-            # stats_df.to_csv('{}\\RandomForest\\RFModels\\StormPercentileVersions\\{}\\{}\\{}\\Seed_{}\\Stats.csv'.format(workingPath,postfire, metric_short, witholding, x))
-    withholding_stats_df = pd.DataFrame(list(zip(seeds, r2s)), columns = ['seeds', 'R2'])
-    withholding_stats_df.to_csv('{}\\RandomForest\\RFModels\\UpdatedModelRuns_Spring26\\Peak\\Full\\WithholdingOptimization2\\Withholding2_{}.csv'.format(workingPath, witholding))
-            
