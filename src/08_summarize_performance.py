@@ -63,19 +63,23 @@ def load_watershed_run(watershed):
     """Collect step 6 leave-one-watershed-out predictions for a given watershed 
     """
     predictions_by_seed = pd.DataFrame()
-    stats_frames = []
+    stat_frames = []
     observed = None
     for x in range(N_SEEDS):
         watershed_dir = OUTPUTS / "model_run_watersheds" / f"Seed_{x}" / f"Watershed_USGS{watershed}"
         if not watershed_dir.exists():
             continue
-        predictions = pd.read_csv(watershed_dir / "predictions.csv", reset_index(drop = True) )
+        predictions = pd.read_csv(watershed_dir / "predictions.csv").reset_index(drop=True)
         predictions_by_seed[f"seed{x}"] = predictions["y_pred"]
-        if observed is None: 
+        if observed is None:
             observed = predictions["y_test"]
         stat_frames.append(pd.read_csv(watershed_dir / "stats.csv"))
-        if observed is None:
-            return None, None
+
+    if observed is None:
+        return None, None
+
+    predictions_by_seed["y_test"] = observed
+    return predictions_by_seed, pd.concat(stat_frames, ignore_index=True)
 
 #---------------------------------------------------PLOTTING--------------------------------------------------------------
 
@@ -93,7 +97,7 @@ def plot_density_cloud(ax, predictions):
 def plot_watershed_boxes(ax, predictions_by_seed, color):
     """Overlay one box plot per storm event: spread of seed predictions at the observed peak."""
     seed_columns = [c for c in predictions_by_seed.columns if c != "y_test"]
-     for _, event in predictions_by_seed.iterrows():
+    for _, event in predictions_by_seed.iterrows():
         position = float(np.exp(event["y_test"]))
         ax.boxplot(np.exp(event[seed_columns].to_numpy(dtype=float)),
                    positions=[position],
@@ -106,10 +110,10 @@ def plot_watershed_boxes(ax, predictions_by_seed, color):
 #---------------------------------------------------MAIN--------------------------------------------------------------
 
 def main():
-    def main():
     out_dir = OUTPUTS / "performance_summary"
     out_dir.mkdir(parents=True, exist_ok=True)
- # 1. Pool the step 05 run and save the per-seed stats.
+
+    # 1. Pool the step 05 run and save the per-seed stats.
     predictions, seed_stats = load_seed_predictions()
     seed_stats.to_csv(out_dir / "seed_stats_summary.csv", index=False)
     print(f"Pooled {len(predictions)} predictions from {len(seed_stats)} seeds "

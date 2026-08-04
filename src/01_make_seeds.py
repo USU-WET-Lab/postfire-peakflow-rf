@@ -14,8 +14,8 @@ splits re-producible run-to-run.
 
 Reads: data/<SOURCE_TABLE> (for the GAGE_ID column)
 
-Writes: outputs/seeds/<WITHOLDING>/seed_<x>/wats_train.csv
-        outputs/seeds/<WITHOLDING>/seed_<x>/wats_test.csv
+Writes: outputs/seeds/<WITHOLDING>/Seed_<x>/wats_train.csv
+        outputs/seeds/<WITHOLDING>/Seed_<x>/wats_test.csv
 
 To Run: python src/01_make_seeds.py
 
@@ -50,7 +50,7 @@ def main():
 
     n_test = int(len(watersheds) * WITHOLD_FRACTION) # number of watersheds to withold for testing
     print(f"Generating {N_SEEDS} random train/test splits with {n_test} watersheds held out for testing ({WITHOLDING})")
-    seeds_dir = OUTPUTS / "Seeds" / WITHOLDING
+    seeds_dir = OUTPUTS / "seeds" / WITHOLDING
 
     for x in range(N_SEEDS):
         # watershed level split

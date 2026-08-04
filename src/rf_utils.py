@@ -60,7 +60,7 @@ def plot_predicted_vs_actual(y_true, y_pred, path, back_transform = False):
     plt.close(fig)
 
 def plot_residuals(y_pred, residuals, path): 
-    fig, ax = plt.subplots(fig_size = (5, 5))
+    fig, ax = plt.subplots(figsize = (5, 5))
     ax.scatter(y_pred, residuals, alpha= 0.5)
     ax.axhline(0, color="red", linestyle="--")
     ax.set_xlabel("Predicted")

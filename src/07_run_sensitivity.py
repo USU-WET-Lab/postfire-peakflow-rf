@@ -92,10 +92,10 @@ def main():
 
     out_dir = OUTPUTS / "sensitivity"
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"sensitivity_predictions_USGS{WATERSHED}.csv
+    out_path = out_dir / f"sensitivity_predictions_USGS{WATERSHED}.csv"
     pd.concat([scenarios, preds], axis=1).to_csv(out_path, index=False)
 
-    print(f"USGS{WATERSHED}: {len(scenarios)s -> {out_path}")
+    print(f"USGS{WATERSHED}: {len(scenarios)} scenarios -> {out_path}")
 
 
 if __name__ == "__main__":

@@ -1,53 +1,110 @@
-## Haley Canham ##
-## Jan 2026 ##
-## Summarized shap values across many seeds using abs avg ##
+"""
+09_summarize_shap.py - Step 9 of the post-fire peak flow pipeline
 
+Pools the SHAP values from every seed of the step 05 run and ranks features
+by mean. SHAP values quantify the contribution od each feature to the prediction
+regardless of direction. For feature importance and direction of influence,
+see step 10.
 
-## libaries
-import numpy as np
+Bars are colored by feature category (storm, fire, watershed/climate)
+
+Reads:  outputs/model_run/Seed_<x>/shap_values.csv
+
+Writes: outputs/shap_summary/shap_importance.csv     (feature, mean_abs_shap, category)
+        outputs/shap_summary/shap_importance_bar.png
+
+Run: python src/09_summarize_shap.py
+"""
+
+#---------------------------------------------IMPORTS---------------------------------------------------------------------------------------------
+from pathlib import Path
 import pandas as pd
-import shap
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
+
+#-------------------------------------------CONFIG: only edit this block ---------------------------------------------------------------------------
+ROOT    = Path(__file__).resolve().parent.parent   # repo root; auto-derives, no need to edit
+OUTPUTS = ROOT / "outputs"
+
+N_SEEDS = 100
+
+# Bar color by driver category. The original hard-coded one color per bar in importance
+# order, which silently mis-colors the figure whenever the ranking shifts; mapping
+# feature -> category keeps the colors right no matter how the bars sort.
+CATEGORY_COLORS = {"storm": "blue", "fire": "mediumseagreen", "watershed": "brown"}
+UNCATEGORIZED_COLOR = "lightgrey"
+
+FEATURE_CATEGORIES = {
+    # storm and antecedent conditions
+    "AntecedentPrecip_mm":              "storm",
+    "AvgMonthly_Precip_cm":             "storm",
+    "D1":                               "storm",
+    "CoefVar":                          "storm",
+    # fire, burn severity, vegetation change, and burned-area/storm overlap
+    "DaysSinceFire":                    "fire",
+    "MTBS_burnedarea_per":              "fire",
+    "SBS_mod_high_area_burned_per_wat": "fire",
+    "burned_storm_depth_per":           "fire",
+    "burned_storm_int_per":             "fire",
+    "ratio_LAI":                        "fire",
+    # watershed physiography and long-term climate
+    "DRAIN_SQKM":                       "watershed",
+    "riparian_area_per":                "watershed",
+    "PPTAVG_BASIN":                     "watershed",
+    "RH_BASIN":                         "watershed",
+    "SNOW_PCT_PRECIP":                  "watershed",
+    "PRECIP_SEAS_IND":                  "watershed",
+}
+
+#---------------------------------------------MAIN CODE BLOCK-------------------------------------------------------------
+
+def load_shap_values():
+    """Stack the per-seed SHAP tables: one row per test storm per seed, one column per feature."""
+    frames = []
+    for x in range(N_SEEDS):
+        shap_file = OUTPUTS / "model_run" / f"Seed_{x}" / "shap_values.csv"
+        if not shap_file.exists():
+            continue
+        frames.append(pd.read_csv(shap_file))
+
+    if not frames:
+        raise FileNotFoundError(f"No SHAP values found under {OUTPUTS / 'model_run'}. Run step 05 first.")
+    return pd.concat(frames, ignore_index=True)
 
 
-workingPath = 'C:\\Users\\A02343538\\Box\\MyResearch\\Chap3\\RandomForest\\RFModels\\UpdatedModelRuns_Spring26\\Peak\\Full\\ModelRun'
+def main():
+    out_dir = OUTPUTS / "shap_summary"
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-shaps = pd.DataFrame()
-datas = pd.DataFrame()
+    # 1. Mean absolute SHAP value per feature, most influential first.
+    shap_values = load_shap_values()
+    importance = (shap_values.abs().mean()
+                  .sort_values(ascending=False)
+                  .rename("mean_abs_shap")
+                  .rename_axis("feature")
+                  .reset_index())
+    importance["category"] = importance.feature.map(FEATURE_CATEGORIES).fillna("uncategorized")
+    importance.to_csv(out_dir / "shap_importance.csv", index=False)
 
-# loop through each seed
-for x in range (0,100):
-    # shap_file = '{}\\RandomForest\\RFModels\\StormPercentileVersions\\PostFire\\Peak\\modelbounds_optimized_80_20\\Seed_{}\\ShapValues.csv'.format(workingPath,x)
-    shap_file = '{}\\Seed_{}\\ShapValues.csv'.format(workingPath,x)
-    shap = pd.read_csv(shap_file, index_col=0)
-    # data_file = '{}\\RandomForest\\RFModels\\StormPercentileVersions\\PostFire\\Peak\\modelbounds_optimized_80_20\\Seed_{}\\ShapValues_data.csv'.format(workingPath,x)
-    data_file = '{}\\Seed_{}\\ShapValues_data.csv'.format(workingPath,x)
-    data = pd.read_csv(data_file, index_col=0)
+    uncategorized = importance.loc[importance.category == "uncategorized", "feature"].tolist()
+    if uncategorized:
+        print(f"No category set for {uncategorized}, drawn in {UNCATEGORIZED_COLOR}")
 
-    if shaps.empty:
-        shaps = shap
-        datas = data
-    else:
-        shaps = pd.concat([shaps,shap])
-        datas = pd.concat([datas,data])
+    # 2. Bar chart, colored by category.
+    colors = [CATEGORY_COLORS.get(c, UNCATEGORIZED_COLOR) for c in importance.category]
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.bar(importance.feature, importance.mean_abs_shap, color=colors)
+    ax.set_ylabel("Mean |SHAP value|")
+    ax.tick_params(axis="x", rotation=90)
+    ax.legend(handles=[Patch(facecolor=color, label=category)
+                       for category, color in CATEGORY_COLORS.items()])
 
-shaps_abs = shaps.abs()
-shaps_abs_avg = shaps_abs.mean()
-shaps_abs_avg = shaps_abs_avg.sort_values(ascending=False)
+    fig.tight_layout()
+    out_path = out_dir / "shap_importance_bar.png"
+    fig.savefig(out_path, dpi=300)
+    plt.close(fig)
+    print(f"Done! Ranked {len(importance)} features, wrote {out_path}")
 
-# bar_colors_mag = ['blue', 'mediumseagreen', 'mediumseagreen', 'blue', 'blue', 'blue','mediumseagreen', 'mediumseagreen', 'mediumseagreen', 'blue',
-#                   'mediumseagreen', 'blue', 'blue', 'brown', 'blue', 'brown', 'brown', 'blue']
-# bar_colors_change = ['brown', 'blue', 'mediumseagreen', 'mediumseagreen','mediumseagreen', 'mediumseagreen', 'blue',
-#                      'mediumseagreen', 'blue', 'blue','blue', 'brown', 'blue', 'blue', 'brown', 'blue',
-#                      'mediumseagreen', 'mediumseagreen', 'mediumseagreen', 'mediumseagreen', 'mediumseagreen', 'mediumseagreen',
-#                      'brown', 'mediumseagreen', 'mediumseagreen','mediumseagreen',  'mediumseagreen','mediumseagreen', 'mediumseagreen',
-#                      'blue', 'mediumseagreen', 'blue','mediumseagreen','brown', 'brown' ]
-bar_colors_peak = ['blue', 'mediumseagreen', 'mediumseagreen', 'blue', 'blue', 'mediumseagreen','mediumseagreen', 'mediumseagreen', 'mediumseagreen', 'brown',
-                  'blue', 'blue', 'brown', 'brown', 'blue', 'brown']
-shaps_abs_avg.plot(kind = 'bar', color = bar_colors_peak)
 
-plt.tight_layout()
-# plt.savefig('{}\\RandomForest\\RFModels\\StormPercentileVersions\\PostFire\\Peak\\modelbounds_optimized_80_20\\0_SummaryPlots\\SummaryBar_colored.png'.format(workingPath))
-# plt.savefig('{}\\0_SummaryPlots\\SummaryBar.png'.format(workingPath))
-
-plt.show()
+if __name__ == "__main__":
+    main()

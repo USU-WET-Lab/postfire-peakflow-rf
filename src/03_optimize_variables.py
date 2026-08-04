@@ -52,7 +52,7 @@ def main():
             (df.DaysSinceFire <= BOUNDS['max_days_since_fire'])]
     n_start = df.shape[1] - 2 # remove the ID column and metric columns (not features)
     for x in range(N_SEEDS): 
-        seed_dir = OUTPUTS / "Seeds" / WITHOLDING / f"Seed_{x}"
+        seed_dir = OUTPUTS / "seeds" / WITHOLDING / f"Seed_{x}"
         train_ids = pd.read_csv(seed_dir / "wats_train.csv")[ID_COL].tolist()
         test_ids = pd.read_csv(seed_dir / "wats_test.csv")[ID_COL].tolist()
 
