@@ -178,8 +178,6 @@ The full training dataset is not distributed with this repository. The attribute
 are examples that illustrate the format of the input and let the pipeline run end to end. Running
 this code will not reproduce the numbers in the paper.
 
-Outputs are written to `outputs/`, which each script creates as needed and which is excluded from
+Outputs are written to `outputs/`, which each script creates as needed and is excluded from
 version control.
 
-For a detailed walkthrough of every step, including the mathematics behind each modelling choice,
-see [PIPELINE.md](PIPELINE.md).
