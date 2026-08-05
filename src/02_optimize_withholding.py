@@ -2,13 +2,13 @@
 """
 02_optimize_withholding.py - Step 2 of the post-fire peak flow pipeline
 
-Sweeps train/test witholding percentages across all seeds generated in step 01. 
+Sweeps train/test withholding percentages across all seeds generated in step 01. 
 For each seed, a random forest is trained then evaluated on the test watersheds. 
-The R2 and standard deviation of each seed is recorded and saved to a csv for each witholding percentage.
+The R2 and standard deviation of each seed is recorded and saved to a csv for each withholding percentage.
 
-Reads: outputs/seeds/<witholding>/Seed_<x>/wats_test.csv, outputs/seeds/<witholding>/Seed_<x>/wats_train.csv
+Reads: outputs/seeds/<withholding>/Seed_<x>/wats_test.csv, outputs/seeds/<withholding>/Seed_<x>/wats_train.csv
 
-Writes: outputs/witholding_optimization/witholding_<witholding>.csv
+Writes: outputs/withholding_optimization/withholding_<withholding>.csv
 
 Run: python src/02_optimize_withholding.py
 """
@@ -27,7 +27,7 @@ SOURCE_TABLE = "RF_AttributeTable_PeakMag_FullDataste_trimmed.csv"  # correlated
 METRIC = "PeakArea"  #modeling target (log-transformed)
 ID_COL = "GAGE_ID"  # watershed key; dropped from the feature matrix
 N_SEEDS = 100  # number of random train/test splits to generate
-WITHOLDINGS = ['50_50', '60_40',  '70_30', '80_20', '90_10']  # list of witholding percentages to sweep across
+WITHHOLDINGS = ['50_50', '60_40',  '70_30', '80_20', '90_10']  # list of withholding percentages to sweep across
 RF_KWARGS = dict(n_estimators=100, random_state=42)  # keyword arguments for the random forest regressor
 
 #model domain of applicability bounds (applied to the source table before splitting into train/test seeds, see README for details)
@@ -44,15 +44,15 @@ def main ():
             (df.DaysSinceFire <= BOUNDS["max_days_since_fire"])]
     features = [c for c in df.columns if c not in (METRIC, ID_COL)]
 
-    out_dir = OUTPUTS / "witholding_optimization" 
+    out_dir = OUTPUTS / "withholding_optimization" 
     out_dir.mkdir(exist_ok= True, parents = True)
 
-    for witholding in WITHOLDINGS: 
+    for withholding in WITHHOLDINGS: 
         rows = []
         for x in range(N_SEEDS):
-            seed_dir = OUTPUTS / "seeds" / witholding / f"Seed_{x}"
+            seed_dir = OUTPUTS / "seeds" / withholding / f"Seed_{x}"
             if not seed_dir.exists():
-                continue   # step 01 has not been run for this witholding percentage
+                continue   # step 01 has not been run for this withholding percentage
 
             train_ids = pd.read_csv(seed_dir / "wats_train.csv")[ID_COL].tolist()
             test_ids = pd.read_csv(seed_dir / "wats_test.csv")[ID_COL].tolist()
@@ -66,13 +66,13 @@ def main ():
             rows.append({"seed": f"Seed_{x}", "R2": stats["R2"]})
 
         if not rows:
-            print(f"{witholding}: no seeds found, run step 01 for this witholding first")
+            print(f"{withholding}: no seeds found, run step 01 for this withholding first")
             continue
 
         summary = pd.DataFrame(rows)
-        out_path = out_dir / f"witholding_{witholding}.csv"
+        out_path = out_dir / f"withholding_{withholding}.csv"
         summary.to_csv(out_path, index = False)
-        print(f"{witholding}: mean R2 = {summary['R2'].mean():.3f} "
+        print(f"{withholding}: mean R2 = {summary['R2'].mean():.3f} "
               f"over {len(summary)} seeds")
 
 if __name__ == "__main__": 

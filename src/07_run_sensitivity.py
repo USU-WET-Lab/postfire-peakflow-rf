@@ -9,7 +9,7 @@ we create the curve of ONE instance (watershed) and the loop varies the model, n
 complementary, dataset-wide SHAP dependence view. 
 
 Reads:  data/<MODEL_TABLE>, data/<SENSITIVITY_TABLE>
-        outputs/seeds/<WITHOLDING>/Seed_<x>/wats_train.csv
+        outputs/seeds/<WITHHOLDING>/Seed_<x>/wats_train.csv
 
 Writes: outputs/sensitivity/sensitivity_predictions_USGS<WATERSHED>.csv
 

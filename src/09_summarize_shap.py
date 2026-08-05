@@ -21,6 +21,7 @@ from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
+from rf_utils import load_pooled_shap
 
 #-------------------------------------------CONFIG: only edit this block ---------------------------------------------------------------------------
 ROOT    = Path(__file__).resolve().parent.parent   # repo root; auto-derives, no need to edit
@@ -58,26 +59,12 @@ FEATURE_CATEGORIES = {
 
 #---------------------------------------------MAIN CODE BLOCK-------------------------------------------------------------
 
-def load_shap_values():
-    """Stack the per-seed SHAP tables: one row per test storm per seed, one column per feature."""
-    frames = []
-    for x in range(N_SEEDS):
-        shap_file = OUTPUTS / "model_run" / f"Seed_{x}" / "shap_values.csv"
-        if not shap_file.exists():
-            continue
-        frames.append(pd.read_csv(shap_file))
-
-    if not frames:
-        raise FileNotFoundError(f"No SHAP values found under {OUTPUTS / 'model_run'}. Run step 05 first.")
-    return pd.concat(frames, ignore_index=True)
-
-
 def main():
     out_dir = OUTPUTS / "shap_summary"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Mean absolute SHAP value per feature, most influential first.
-    shap_values = load_shap_values()
+    shap_values = load_pooled_shap(OUTPUTS / "model_run", N_SEEDS)
     importance = (shap_values.abs().mean()
                   .sort_values(ascending=False)
                   .rename("mean_abs_shap")

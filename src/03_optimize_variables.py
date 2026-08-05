@@ -11,7 +11,7 @@ Feature selection itsels is a manual step performed AFTER this script is run, se
 Warning: this script is computationally expensive and will take a long time to run. 
 
 Reads: data/<SOURCE_TABLE> 
-        outputs/seeds/<WITHOLDING>/seed_<x>/wats_train.csv, wats_test.csv
+        outputs/seeds/<WITHHOLDING>/seed_<x>/wats_train.csv, wats_test.csv
 
 Writes: outputs/variable_optimization/Seed_<x>/Stats_Vars<n>.csv
         outputs/variable_optimization/Seed_<x>/Importances_Vars<n>.csv 
@@ -35,7 +35,7 @@ SOURCE_TABLE = 'RF_AttributeTable_PeakMag_FullDataste_trimmed.csv'  # source tab
 METRIC = "PeakArea"  #modeling target (log-transformed)
 ID_COL = "GAGE_ID"  # column name for the watershed identifier
 N_SEEDS = 100  # number of random train/test splits to generate
-WITHOLDING = "80_20"  # string to describe the witholding fraction (e.g., "90_10" for 10% held out, "80_20" for 20% held out)
+WITHHOLDING = "80_20"  # string to describe the withholding fraction (e.g., "90_10" for 10% held out, "80_20" for 20% held out)
 RF_KWARGS = dict(n_estimators=100, random_state=42) 
 
 #Model domain of applicability bounds (applied to the source table before splitting into train/test seeds, see README for details)
@@ -52,11 +52,11 @@ def main():
             (df.DaysSinceFire <= BOUNDS['max_days_since_fire'])]
     n_start = df.shape[1] - 2 # remove the ID column and metric columns (not features)
     for x in range(N_SEEDS): 
-        seed_dir = OUTPUTS / "seeds" / WITHOLDING / f"Seed_{x}"
+        seed_dir = OUTPUTS / "seeds" / WITHHOLDING / f"Seed_{x}"
         train_ids = pd.read_csv(seed_dir / "wats_train.csv")[ID_COL].tolist()
         test_ids = pd.read_csv(seed_dir / "wats_test.csv")[ID_COL].tolist()
 
-        out_dir = OUTPUTS / "variable_optimization " / f"Seed_{x}"
+        out_dir = OUTPUTS / "variable_optimization" / f"Seed_{x}"
         out_dir.mkdir(parents=True, exist_ok=True)
 
         data = df.copy()  # start with the full feature set for this seed

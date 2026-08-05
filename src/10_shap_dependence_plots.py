@@ -25,6 +25,7 @@ Run: python src/10_shap_dependence_plots.py
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
+from rf_utils import load_pooled_shap
 
 #-------------------------------------------CONFIG: only edit this block ---------------------------------------------------------------------------
 ROOT    = Path(__file__).resolve().parent.parent   # repo root; auto-derives, no need to edit
@@ -36,32 +37,6 @@ ROLLING_WINDOW = 1000        # points per rolling window; narrowed automatically
 INNER_BAND = (0.25, 0.75)    # dark band: interquartile spread of influence
 OUTER_BAND = (0.10, 0.90)    # light band
 FIGSIZE = (4, 3)
-
-#---------------------------------------------LOADING-------------------------------------------------------------
-
-def load_pooled_shap():
-    """Stack every seed's SHAP values and the matching feature values.
-
-    Returns (values, data): same shape, same columns, one row per test storm per seed.
-    Row i of `data` holds the feature values that produced row i of `values`.
-    """
-    value_frames = []
-    data_frames = []
-
-    for x in range(N_SEEDS):
-        seed_dir = OUTPUTS / "model_run" / f"Seed_{x}"
-        if not (seed_dir / "shap_values.csv").exists():
-            continue
-        value_frames.append(pd.read_csv(seed_dir / "shap_values.csv"))
-        data_frames.append(pd.read_csv(seed_dir / "shap_data.csv"))
-
-    if not value_frames:
-        raise FileNotFoundError(f"No SHAP values found under {OUTPUTS / 'model_run'}. Run step 05 first.")
-
-    # ignore_index keeps the two frames on a shared 0..N index so they align feature by feature.
-    return (pd.concat(value_frames, ignore_index=True),
-            pd.concat(data_frames, ignore_index=True))
-
 
 #---------------------------------------------PLOT----------------------------------------------------------------
 
@@ -102,7 +77,8 @@ def main():
     out_dir = OUTPUTS / "shap_summary" / "dependence"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    values, data = load_pooled_shap()
+    # `data` holds the feature values that produced `values`, aligned row for row.
+    values, data = load_pooled_shap(OUTPUTS / "model_run", N_SEEDS, with_data=True)
 
     # A window wider than the data returns all NaN, which silently draws a blank figure.
     window = min(ROLLING_WINDOW, max(len(values) // 10, 1))

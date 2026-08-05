@@ -1,205 +1,107 @@
 """
 06_run_model_by_watershed.py - Step 6 of the post-fire peak flow pipeline
 
+The same model as step 05, but scored one test watershed at a time. Step 05 reports a single R2
+for a seed's whole test set, pooled over ~30 watersheds; this step evaluates each held-out
+watershed on its own, so you can ask which watersheds the model handles well and what drives its
+predictions at a specific gage. Steps 08 and 11 summarize the results.
 
+Within a seed the training set is the same no matter which test watershed you are scoring, so the
+forest is fit ONCE per seed and then applied to each test watershed in turn. The original version
+refit an identical model for every watershed; the predictions are unchanged, it is just ~30x less
+work per seed.
+
+Note on per-watershed R2: with only a handful of storms at one gage, the denominator of R2 is
+computed over very few points, so negative values are common and expected. They mean the model
+did worse than predicting that watershed's own mean, which is a benchmark it never had access to.
+Read these as relative comparisons between watersheds, not as absolute skill.
+
+Reads: data/<MODEL_TABLE>
+       outputs/seeds/<WITHHOLDING>/Seed_<x>/wats_train.csv, wats_test.csv
+
+Writes: outputs/model_run_watersheds/Seed_<x>/importances.csv                       (Feature, Importance)
+        outputs/model_run_watersheds/Seed_<x>/Watershed_USGS<id>/stats.csv          (mse, rmse, R2)
+        outputs/model_run_watersheds/Seed_<x>/Watershed_USGS<id>/predictions.csv    (GAGE_ID, y_test, y_pred; log space)
+        outputs/model_run_watersheds/Seed_<x>/Watershed_USGS<id>/shap_values.csv, shap_data.csv
+
+Run: python src/06_run_model_by_watershed.py
 
 """
-## libaries
+
+
+#---------------------------------------------IMPORTS---------------------------------------------------------------------------------------------
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-from sklearn import preprocessing
-from sklearn import utils
-from sklearn.metrics import mean_squared_error, r2_score
-import matplotlib.pyplot as plt
-from sklearn.inspection import PartialDependenceDisplay
-import shap
-import random
-import os
-import math
-from sklearn import metrics
+from pathlib import Path
+from rf_utils import fit_rf, evaluate, ranked_importances, compute_shap, shap_frames
 
-# ARI = 1
-metric = 'PeakArea' 
+#-------------------------------------------CONFIG: only edit this block ---------------------------------------------------------------------------
+ROOT    = Path(__file__).resolve().parent.parent   # repo root; auto-derives, no need to edit
+DATA    = ROOT / "data"
+OUTPUTS = ROOT / "outputs"
 
+MODEL_TABLE = "RF_AttributeTable_PeakMag_OptimizedModel.csv"   # final optimized feature set
+METRIC      = "PeakArea"
+ID_COL      = "GAGE_ID"
+N_SEEDS     = 100
+WITHHOLDING = "80_20"
+RF_KWARGS   = dict(n_estimators=100, random_state=42)
 
-workingPath = 'C:\\Users\\A02343538\\Box\\MyResearch\\Chap3\\RandomForest\\RFModels\\UpdatedModelRuns_Spring26\\Peak\\Full'
-
-# threshs = [0]
-# threshs = [100, 365, 548, 730, 1095, 1460, 1825, 2190]
-# threshs = [0, 10, 20, 30, 40, 50, 75, 100, 150, 200, 300, 400 ,500, 600]
-# threshs = [0, 10,15, 20, 25, 30, 35, 40, 50, 60]
-# threshs = [0, 10, 20, 30, 40, 50, 60, 70, 80, 85, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]
-
-# for thresh in threshs:
-# print(thresh)
-# print('ARI1 depth')
-data_file = '{}\\RF_AttributeTable_ARI1_Peak_modelbounds_Optimized.csv'.format(workingPath)
-data = pd.read_csv(data_file)
-
-# data = data[(data.DRAIN_SQKM > 50)]
-# data = data[(data.burnedarea_per > 20)]
-# # data = data[data.burned_storm_depth_per > thresh]
-# data = data[data.burned_storm_depth_per > 70]
-# # data = data[data.burned_storm_int_per > 93]
-# data = data[data.DaysSinceFire < 1095]
-# print(per, len(data))
-
-r2s = []
-
-# loop through each seed
-for x in range (0,100):
-# for x in range(85, 86):
-    print(x)
-
-    if not os.path.exists('{}\\ModelRun_Watersheds\\Seed_{}'.format(workingPath, x)):
-        os.mkdir('{}\\ModelRun_Watersheds\\Seed_{}'.format(workingPath, x))
-
-    watersheds_test_file = '{}\\Seeds\\80_20\\Seed_{}\\wats_test.csv'.format(workingPath, x)
-    watersheds_train_file = '{}\\Seeds\\80_20\\Seed_{}\\wats_train.csv'.format(workingPath, x)
-    watersheds_test_df = pd.read_csv(watersheds_test_file)
-    watersheds_train_df = pd.read_csv(watersheds_train_file)
-    watersheds_test_full = watersheds_test_df.GAGE_ID.to_list()
-    watersheds_train = watersheds_train_df.GAGE_ID.to_list()
-
-    # for k in range(0,1):
-    for k in range(0, len(watersheds_test_full)):
-
-        watersheds_test = [watersheds_test_full[k]]
-        if not os.path.exists('{}\\ModelRun_Watersheds\\Seed_{}\\Watershed_USGS{}'.format(workingPath, x, watersheds_test[0])):
-            os.mkdir('{}\\ModelRun_Watersheds\\Seed_{}\\Watershed_USGS{}'.format(workingPath, x, watersheds_test[0]))
-            os.mkdir('{}\\ModelRun_Watersheds\\Seed_{}\\Watershed_USGS{}\\PD'.format(workingPath, x, watersheds_test[0]))
-            os.mkdir('{}\\ModelRun_Watersheds\\Seed_{}\\Watershed_USGS{}\\shapPD'.format(workingPath, x, watersheds_test[0]))
-            os.mkdir('{}\\ModelRun_Watersheds\\Seed_{}\\Watershed_USGS{}\\Waterfalls'.format(workingPath, x, watersheds_test[0]))
+# Columns to drop before fitting. Keep this in step with step 05 so both runs model the same thing.
+DROP_COLUMNS = ["ASPECT_NORTHNESS"]
 
 
-        test = data[data.GAGE_ID.isin(watersheds_test)]
-        train = data[data.GAGE_ID.isin(watersheds_train)]
+#---------------------------------------------MAIN CODE BLOCK-------------------------------------------------------------
 
-        X_train = train.drop(columns=[metric, 'GAGE_ID'])
-        X_test = test.drop(columns=[metric, 'GAGE_ID'])
-        # X_train = np.log(X_train)
-        # X_test = np.log(X_test)
-        # X = pd.concat([X_train, X_test], axis=0)
+def main():
+    data = pd.read_csv(DATA / MODEL_TABLE)
+    if DROP_COLUMNS:
+        data = data.drop(columns = DROP_COLUMNS, errors = "ignore")
+    features = [c for c in data.columns if c not in (METRIC, ID_COL)]
 
-        # y_train = train[metric]
-        # y_test = test[metric]
-        y_train = np.log(train[metric])
-        y_test = np.log(test[metric])
-        # y = pd.concat([y_train, y_test], axis=0)
+    for x in range(N_SEEDS):
+        seed_dir = OUTPUTS / "model_run_watersheds" / f"Seed_{x}"
+        seed_dir.mkdir(parents=True, exist_ok=True)
 
-        # print('Train: {}, Test: {}, %Test: {}'.format(len(X_train), len(X_test), len(X_test)/len(X_train)*100))
+        split_dir = OUTPUTS / "seeds" / WITHHOLDING / f"Seed_{x}"
+        train_ids = pd.read_csv(split_dir / "wats_train.csv")[ID_COL].tolist()
+        test_ids  = pd.read_csv(split_dir / "wats_test.csv")[ID_COL].tolist()
 
-        cols = data.columns.tolist()
+        # One fit per seed; the training set does not depend on which watershed we score.
+        train = data[data[ID_COL].isin(train_ids)]
+        model = fit_rf(train[features], np.log(train[METRIC]), **RF_KWARGS)
+        ranked_importances(model, features).to_csv(seed_dir / "importances.csv", index=False)
 
-        features = X_train.columns.tolist()
+        scored = 0
+        for watershed in test_ids:
+            test = data[data[ID_COL] == watershed]
+            if test.empty:
+                continue   # no storms for this watershed inside the model bounds
 
-        # Create a random forest classifier
-        rf_regressor = RandomForestRegressor(n_estimators=100, random_state=42)
+            watershed_dir = seed_dir / f"Watershed_USGS{watershed}"
+            watershed_dir.mkdir(parents=True, exist_ok=True)
 
-        # Train the classifier
-        rf_regressor.fit(X_train, y_train)
-        # rf_regressor.fit(X, y)
+            y_test = np.log(test[METRIC])
+            y_pred = model.predict(test[features])
 
-        # Make predictions on the test set
-        y_pred = rf_regressor.predict(X_test)
-        # y_pred = rf_regressor.predict(X)
+            stats = evaluate(y_test, y_pred)
+            pd.DataFrame([stats]).to_csv(watershed_dir / "stats.csv", index=False)
 
-        # Evaluate the model
-        mse = mean_squared_error(y_test, y_pred)
-        # mse = mean_squared_error(y, y_pred)
-        rmse = np.sqrt(mse)
-        r2 = r2_score(y_test, y_pred)
-        # r2 = r2_score(y, y_pred)
-        # print(f"Mean Squared Error: {mse}, RMSE: {rmse}")
-        # print(f"R-squared: {r2}")
-        stats_df = pd.DataFrame(list(zip([mse], [rmse], [r2])), columns=['mse', 'rmse', 'R2'])
-        # print(f"R-squared: {r2_score(y, y_pred)}")
-        stats_df.to_csv('{}\\ModelRun_Watersheds\\Seed_{}\\Watershed_USGS{}\\Stats.csv'.format(workingPath, x, watersheds_test[0]))
-        r2s.append(r2)
+            pd.DataFrame({ID_COL: test[ID_COL].to_numpy(),
+                          "y_test": y_test.to_numpy(),
+                          "y_pred": y_pred}).to_csv(watershed_dir / "predictions.csv", index=False)
 
-        print('{} %Test: {}, R2: {}'.format(x, (len(X_test) / len(X_train) * 100), r2))
+            # SHAP for just this watershed's storms; TreeSHAP is per-row, so these are the same
+            # attributions step 05 produces, restricted to this gage.
+            values, shap_data = shap_frames(compute_shap(model, test[features]))
+            values.to_csv(watershed_dir / "shap_values.csv", index=False)
+            shap_data.to_csv(watershed_dir / "shap_data.csv", index=False)
+            scored += 1
 
-        # print('median: {}'.format(np.median(r2s)))
-        # print('mean: {}'.format(np.mean(r2s)))
+        print(f"Seed_{x}: scored {scored} test watersheds")
 
-        # output y files
-        y_test.to_csv('{}\\ModelRun_Watersheds\\Seed_{}\\Watershed_USGS{}\\y_test.csv'.format(workingPath, x,  watersheds_test[0]))
-        y_pred_series = pd.Series(y_pred)
-        y_pred_series.to_csv('{}\\ModelRun_Watersheds\\Seed_{}\\Watershed_USGS{}\\y_pred.csv'.format(workingPath, x, watersheds_test[0]))
-
-        # Get feature importances
-        importances = rf_regressor.feature_importances_
-
-        # Sort feature importances in descending order
-        indices = np.argsort(importances)[::-1]
-
-        features_sorted = []
-        importances_sorted = []
-        # Print ranked feature importances
-        # print("Feature ranking:")
-        for f in range(0,len(X_test.columns)):
-        # for f in range(0, 5):
-        #     print("%d. %s (%f)" % (f + 1, features[indices[f]], importances[indices[f]]))
-            features_sorted.append(features[indices[f]])
-            importances_sorted.append(importances[indices[f]])
-
-        importances_df = pd.DataFrame(list(zip(features_sorted, importances_sorted)), columns=['Feature', 'Importance'])
-        importances_df.to_csv('{}\\ModelRun_Watersheds\\Seed_{}\\Watershed_USGS{}\\Importances.csv'.format(workingPath, x, watersheds_test[0]))
-
-        # Residual Plot
-        residuals = y_test - y_pred
-        residuals.to_csv('{}\\ModelRun_Watersheds\\Seed_{}\\Watershed_USGS{}\\residuals.csv'.format(workingPath, x ,watersheds_test[0]))
-
-        # residuals = y - y_pred
-        plt.scatter((np.exp(y_pred)), (residuals), alpha=0.5)
-        # plt.scatter(y, residuals, alpha=0.5)
-        plt.xlabel('Predicted Values')
-        plt.ylabel('Residuals')
-        plt.title('Residual Plot')
-        plt.axhline(y=0, color='red', linestyle='--')
-        plt.savefig('{}\\ModelRun_Watersheds\\Seed_{}\\Watershed_USGS{}\\Residuals.png'.format(workingPath, x, watersheds_test[0]))
-        # plt.show()
-        plt.close()
-        #
-        # Predicted vs Actual Plot
-        plt.figure(figsize=(7, 4))
-        plt.scatter(np.exp(y_test), np.exp(y_pred), alpha=0.5)
-        # plt.scatter(y, y_pred, alpha=0.5)
-        plt.xlabel('Actual Values')
-        plt.ylabel('Predicted Values')
-        plt.title('Predicted vs Actual Values')
-        plt.plot([0, np.exp(y_test.max())], [0, np.exp(y_test.max())], 'r--', lw=4)
-        # plt.plot([np.exp(y_test.min()), np.exp(y_test.max())], [np.exp(y_test.min()), np.exp(y_test.max())], 'r--', lw=4)
-        plt.tight_layout()
-
-        plt.savefig('{}\\ModelRun_Watersheds\\Seed_{}\\Watershed_USGS{}\\Predicted.png'.format(workingPath,x, watersheds_test[0]))
-        # plt.show()
-        plt.close()
+    print(f"Done! Wrote {N_SEEDS} seed runs to {OUTPUTS / 'model_run_watersheds'}")
 
 
-        print('calculating shap')
-        # Create the SHAP explainer for the Random Forest model
-        explainer = shap.TreeExplainer(rf_regressor)
-
-        # Calculate SHAP values for the test set
-        shap_values = explainer(X_test)
-        # print(shap_values)
-        print('calculated shap!')
-        shap_values_df = pd.DataFrame(shap_values.values, columns = [shap_values.feature_names])
-        shap_values_data_df = pd.DataFrame(shap_values.data, columns = [shap_values.feature_names])
-        #
-        shap_values_df.to_csv('{}\\ModelRun_Watersheds\\Seed_{}\\Watershed_USGS{}\\ShapValues.csv'.format(workingPath, x, watersheds_test[0]))
-        shap_values_data_df.to_csv('{}\\ModelRun_Watersheds\\Seed_{}\\Watershed_USGS{}\\ShapValues_data.csv'.format(workingPath, x, watersheds_test[0]))
-        #
-        # Generate a SHAP summary plot
-        ax = plt.gca()
-        fig4 = shap.summary_plot(shap_values, X_test, max_display=20, show=False)
-        plt.gcf().set_size_inches(10, 12)
-        # ax.set_xlim(-0.2,0.2)
-        plt.tight_layout()
-        plt.savefig('{}\\ModelRun_Watersheds\\seed_{}\\Watershed_USGS{}\\Summary.png'.format(workingPath, x, watersheds_test[0]))
-        # plt.show()
-        plt.close()
+if __name__ == "__main__":
+    main()

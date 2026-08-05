@@ -8,7 +8,7 @@ The per-seed outputs from this step feed subsequent summary steps (08, 09, 10). 
 is log-transformed for fitting in log space.
 
 Reads: data / <MODEL_TABLE>
-       outputs/seeds/<WITHOLDING>/Seed_<x>/wats_train.csv, wats_test.csv
+       outputs/seeds/<WITHHOLDING>/Seed_<x>/wats_train.csv, wats_test.csv
 
 Writes: outputs/model_run/Seed_<x>/stats.csv          (mse, rmse, R2)
         outputs/model_run/Seed_<x>/predictions.csv    (GAGE_ID, y_test, y_pred; log space)
@@ -37,7 +37,7 @@ MODEL_TABLE = "RF_AttributeTable_PeakMag_OptimizedModel.csv"   # final optimized
 METRIC      = "PeakArea"
 ID_COL      = "GAGE_ID"
 N_SEEDS     = 100
-WITHOLDING  = "80_20"
+WITHHOLDING  = "80_20"
 RF_KWARGS   = dict(n_estimators=100, random_state=42)
 
 # Columns to drop before fitting (kept out of the final model). Missing names are ignored,
@@ -57,7 +57,7 @@ def main():
         seed_dir = OUTPUTS / "model_run" / f"Seed_{x}"
         seed_dir.mkdir(parents= True, exist_ok= True)
 
-        split_dir = OUTPUTS / "seeds" / WITHOLDING / f"Seed_{x}"
+        split_dir = OUTPUTS / "seeds" / WITHHOLDING / f"Seed_{x}"
         train_ids = pd.read_csv(split_dir / "wats_train.csv")[ID_COL].tolist()
         test_ids  = pd.read_csv(split_dir / "wats_test.csv")[ID_COL].tolist()
 

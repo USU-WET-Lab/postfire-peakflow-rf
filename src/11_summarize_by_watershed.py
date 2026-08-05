@@ -26,6 +26,7 @@ Run: python src/11_summarize_by_watershed.py
 #---------------------------------------------IMPORTS---------------------------------------------------------------------------------------------
 from pathlib import Path
 import pandas as pd
+from rf_utils import seed_shap_frames
 
 #-------------------------------------------CONFIG: only edit this block ---------------------------------------------------------------------------
 ROOT    = Path(__file__).resolve().parent.parent   # repo root; auto-derives, no need to edit
@@ -45,17 +46,15 @@ def watershed_importance(watershed):
     Averaged over every seed that withheld this watershed. Returns a Series indexed by
     feature and named for the watershed, or None if no seed ever withheld it.
     """
-    per_seed = []
-
-    for x in range(N_SEEDS):
-        shap_file = (OUTPUTS / "model_run_watersheds" / f"Seed_{x}" /
-                     f"Watershed_USGS{watershed}" / "shap_values.csv")
-        if not shap_file.exists():
-            continue   # this watershed was in the training set for this seed
-        per_seed.append(pd.read_csv(shap_file).abs().mean().rename(f"seed_{x}"))
-
-    if not per_seed:
+    # Seeds that trained on this watershed have no folder for it and are skipped.
+    frames = seed_shap_frames(OUTPUTS / "model_run_watersheds", N_SEEDS,
+                              leaf=f"Watershed_USGS{watershed}")
+    if not frames:
         return None
+
+    # Mean |SHAP| within each seed first, then across seeds: every seed carries equal weight
+    # regardless of how many storms it scored.
+    per_seed = [values.abs().mean() for values in frames]
 
     # concat aligns the seeds on the feature-name index, so column order never matters.
     return pd.concat(per_seed, axis=1).mean(axis=1).rename(watershed)

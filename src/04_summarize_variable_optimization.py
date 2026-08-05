@@ -1,114 +1,164 @@
 """
 04_summarize_variable_optimization.py - Step 4 of the post-fire peak flow pipeline
+
+Aggregates the recursive feature elimination output from step 03 into the two things you need to
+pick a final feature set:
+
+  1. An R2-versus-feature-count curve, one line per seed plus the across-seed mean. Performance
+     usually climbs steeply over the first few features, plateaus, then drifts as noise features
+     are added back. The left edge of that plateau is the target: the fewest features that keep
+     essentially all the skill.
+
+  2. An average feature ranking at each feature count. Within a seed, a feature's rank is its
+     position in that seed's importance table (1 = most important); features already eliminated in
+     that seed are given a penalty rank of n_features + 1 so they sort last. Averaging rank across
+     seeds is more robust than averaging raw importance, which is on an arbitrary scale that
+     shifts as the feature set shrinks.
+
+FEATURE SELECTION ITSELF IS MANUAL. This script produces the evidence; a human reads the curve,
+picks a feature count, and may deliberately keep domain-critical variables (e.g. burn variables)
+that the ranking alone would have dropped. The chosen set is then saved by hand as
+data/RF_AttributeTable_PeakMag_OptimizedModel.csv, which is what step 05 reads.
+
+Reads:  outputs/variable_optimization/Seed_<x>/Stats_Vars<n>.csv
+        outputs/variable_optimization/Seed_<x>/Importances_Vars<n>.csv
+
+Writes: outputs/variable_optimization_summary/r2_by_feature_count.csv   (rows = feature count, cols = seeds)
+        outputs/variable_optimization_summary/r2_mean.csv               (feature count, mean R2)
+        outputs/variable_optimization_summary/r2_curve.png
+        outputs/variable_optimization_summary/rankings/average_rank_vars<n>.csv
+
+Run: python src/04_summarize_variable_optimization.py
+
 """
 
 #---------------------------------------------IMPORTS---------------------------------------------------------------------------------------------
-import numpy as np
-import pandas as pd
-import random
-import os
-import matplotlib.pyplot as plt
 from pathlib import Path
+import pandas as pd
+import matplotlib.pyplot as plt
 
 #-------------------------------------------CONFIG: only edit this block ---------------------------------------------------------------------------
+ROOT    = Path(__file__).resolve().parent.parent   # repo root; auto-derives, no need to edit
+OUTPUTS = ROOT / "outputs"
+
+RUN_DIR = OUTPUTS / "variable_optimization"   # where step 03 wrote its per-seed folders
+FIGSIZE = (7, 5)
+
+#---------------------------------------------LOADING-------------------------------------------------------------
+
+def seed_dirs():
+    """Every Seed_<x> folder step 03 produced, sorted by seed number rather than by name.
+
+    Sorting by name would put Seed_10 before Seed_2; sorting by the trailing integer keeps the
+    columns in run order.
+    """
+    dirs = [d for d in RUN_DIR.glob("Seed_*") if d.is_dir()]
+    return sorted(dirs, key=lambda d: int(d.name.split("_")[1]))
 
 
-working = 'C:\\Users\\A02343538\\Box\\MyResearch\\Chap3'
-workingPath = '{}\\RandomForest\\RFModels\\UpdatedModelRuns_Spring26\\Peak\\Full\\VariableOptimization'.format(working)
-metric = 'Peak'
-scenario = 'PostFire'
-# witholding = '70_30'
-# version = 'Wat25_VarOp_StormPers'
+def feature_counts(seed_dir):
+    """The feature counts n for which this seed has a Stats_Vars<n>.csv, ascending.
 
-# read in seeds
-seeds_list = []
-directory_path = workingPath
-for entry_name in os.listdir(directory_path):
-        full_path = os.path.join(directory_path, entry_name)
-        if os.path.isdir(full_path) and ('Seed_' in entry_name):
-            seeds_list.append(entry_name)
-# seeds_list = seeds_list[1:]
-# get all stats and output as a single file
-plt.figure()
-all_r2_df = pd.DataFrame()
-for x in seeds_list:
-    vars_count_list = []
-    directory_path = '{}\\{}'.format(workingPath, x)
-    for entry_name in os.listdir(directory_path):
-        full_path = os.path.join(directory_path, entry_name)
-        # print(entry_name)
-        if os.path.isdir(directory_path) and ('Stats_' in entry_name):
-            vars_count_list.append(entry_name)
-    stats_rmse = []
-    stats_mse = []
-    stats_r2 = []
-    vars_count_num = []
-
-    for var in vars_count_list:
-        vars_num = var.split('_Vars')[1]
-        vars_num = int(vars_num.split('.csv')[0])
-        vars_count_num.append(vars_num)
-        Stats_file = '{}\\{}\\Stats_Vars{}.csv'.format(workingPath, x, vars_num)
-        Stats = pd.read_csv(Stats_file)
-        stats_rmse.append(Stats.rmse[0])
-        stats_mse.append(Stats.mse[0])
-        stats_r2.append(Stats.R2[0])
-    stats_summary = pd.DataFrame(list(zip(vars_count_num, stats_mse, stats_rmse, stats_r2)), columns = ['Vars', 'mse', 'rmse', 'R2'])
-    # if all_r2_df.empty == True:
-
-    # stats_summary.to_csv('{}\\RandomForest\\RFModels\\Optimization\\Variables\\{}\\{}\\{}\\{}\\StatsSummary.csv'.format(workingPath,scenario, metric, witholding, x))
-    # make plot
-    # plt.figure()
-    stats_summary_sorted = stats_summary.sort_values(by=['Vars'])
-    stats_summary_sorted= stats_summary_sorted.reset_index(drop=True)
-    all_r2_df[x] = stats_summary_sorted['R2']
-
-    plt.plot(stats_summary_sorted.index, stats_summary_sorted.R2)
-all_r2_avg = all_r2_df.mean(axis=1)
-plt.plot(all_r2_avg, label = 'Avg', color = 'black')
-plt.tight_layout()
-plt.savefig('{}\\VariableOptimizationR2.png'.format(workingPath))
-plt.show()
-all_r2_df.to_csv('{}\\VariableOptimizationR2_allseeds.csv'.format(workingPath))
-all_r2_avg.to_csv('{}\\VariableOptimizationR2_avg.csv'.format(workingPath))
+    Discovered from the filenames rather than assumed, so this works for any starting feature
+    count without a hard-coded range.
+    """
+    counts = [int(f.stem.replace("Stats_Vars", "")) for f in seed_dir.glob("Stats_Vars*.csv")]
+    return sorted(counts)
 
 
+def r2_by_feature_count(dirs):
+    """Assemble R2 for every (feature count, seed) pair into one frame indexed by feature count."""
+    columns = {}
+    for seed_dir in dirs:
+        r2 = {}
+        for n in feature_counts(seed_dir):
+            stats = pd.read_csv(seed_dir / f"Stats_Vars{n}.csv")
+            r2[n] = stats["R2"].iloc[0]
+        columns[seed_dir.name] = pd.Series(r2)
 
-# get average rankings
-
-# for var in range(15,16):
-for var in range(1, 45):
-    rankings_df = pd.DataFrame()
-    for x in seeds_list:
-        importances_file = '{}\\{}\\Importances_Vars{}.csv'.format(workingPath, x, var)
-        importances = pd.read_csv(importances_file)
-        rankings_df[x] = importances.Feature
-    # rankings.to_csv('{}\\RandomForest\\RFModels\\Optimization\\ValidationWitholdings\\{}\\{}\\{}\\ImportanceRanks_summary.csv'.format(workingPath, scenario, metric, witholding))
-
-    #make list of all variables (unique) in df
-    vars_unique = rankings_df.Seed_1.to_list()
-    for col in rankings_df.columns:
-        for v in rankings_df[col]:
-            if v not in vars_unique:
-                vars_unique.append(v)
-
-    # get average ranking for each variable
-    rankings_vars_df = pd.DataFrame()
-    for v in vars_unique:
-        rankings_list = []
-        print(v)
-        for x in seeds_list:
-            print(x)
-            if v in rankings_df[x].to_list():
-                rank = rankings_df[rankings_df[x] == v].index[0]
-            else:
-                rank = len(rankings_df.index) + 1
-            rankings_list.append(rank)
-        rankings_vars_df[v] = rankings_list
-    rankings_vars_avg = rankings_vars_df.mean()
-    rankings_vars_avg.sort_values(inplace=True)
-    rankings_vars_avg.to_csv('{}\\VariableRankings\\VariableRankings_vars{}.csv'.format(workingPath, var))
+    frame = pd.DataFrame(columns).sort_index()
+    frame.index.name = "n_features"
+    return frame
 
 
+def average_ranks(dirs, n):
+    """Mean importance rank per feature at a given feature count, across seeds.
+
+    Rank is 1-based position in a seed's importance table. Features missing from a seed (already
+    eliminated there) get n_features + 1 so they sort below anything that survived.
+    """
+    ranks_by_seed = {}
+    for seed_dir in dirs:
+        importances_file = seed_dir / f"Importances_Vars{n}.csv"
+        if not importances_file.exists():
+            continue
+        ordered = pd.read_csv(importances_file)["Feature"].tolist()
+        ranks_by_seed[seed_dir.name] = {feature: i + 1 for i, feature in enumerate(ordered)}
+
+    if not ranks_by_seed:
+        return None
+
+    every_feature = sorted({f for ranks in ranks_by_seed.values() for f in ranks})
+    penalty = len(every_feature) + 1
+
+    ranks = pd.DataFrame(
+        {seed: [r.get(feature, penalty) for feature in every_feature]
+         for seed, r in ranks_by_seed.items()},
+        index=every_feature)
+    ranks.index.name = "feature"
+
+    return (ranks.mean(axis=1)
+                 .sort_values()
+                 .rename("mean_rank")
+                 .reset_index())
 
 
+#---------------------------------------------MAIN CODE BLOCK-------------------------------------------------------------
+
+def main():
+    out_dir = OUTPUTS / "variable_optimization_summary"
+    rankings_dir = out_dir / "rankings"
+    rankings_dir.mkdir(parents=True, exist_ok=True)
+
+    dirs = seed_dirs()
+    if not dirs:
+        raise FileNotFoundError(f"No Seed_<x> folders under {RUN_DIR}. Run step 03 first.")
+    print(f"Found {len(dirs)} seeds under {RUN_DIR}")
+
+    # 1. R2 vs feature count, per seed and averaged.
+    r2 = r2_by_feature_count(dirs)
+    r2_mean = r2.mean(axis=1).rename("mean_R2")
+
+    r2.to_csv(out_dir / "r2_by_feature_count.csv")
+    r2_mean.to_csv(out_dir / "r2_mean.csv")
+
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    for seed in r2.columns:
+        ax.plot(r2.index, r2[seed], color="grey", alpha=0.3, linewidth=0.8)
+    ax.plot(r2_mean.index, r2_mean, color="black", linewidth=2, label="Mean across seeds")
+    ax.set_xlabel("Number of features")
+    ax.set_ylabel("R2 (log space)")
+    ax.set_title("Recursive feature elimination")
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(out_dir / "r2_curve.png", dpi=300)
+    plt.close(fig)
+
+    best = r2_mean.idxmax()
+    print(f"Mean R2 peaks at {best} features (R2 = {r2_mean.loc[best]:.3f}); "
+          f"read the curve for the plateau, do not just take the peak")
+
+    # 2. Average feature ranking at each feature count.
+    written = 0
+    for n in r2.index:
+        ranking = average_ranks(dirs, n)
+        if ranking is None:
+            continue
+        ranking.to_csv(rankings_dir / f"average_rank_vars{n}.csv", index=False)
+        written += 1
+
+    print(f"Done! Wrote the R2 curve and {written} ranking tables to {out_dir}")
+
+
+if __name__ == "__main__":
+    main()
