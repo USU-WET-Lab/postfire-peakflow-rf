@@ -33,6 +33,11 @@ def ranked_importances(model, feature_names) -> pd.DataFrame:
             .sort_values("Importance", ascending = False)
             .reset_index(drop = True)) 
 
+def load_model_table(path): 
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"{path} not found. Please run step 04b to build the model table first.")
+
 #---------------------------------------SHAP------------------------------------------------------------------
 def compute_shap(model, X): 
     explainer = shap.TreeExplainer(model)
