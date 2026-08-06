@@ -45,9 +45,9 @@ Every model is built with the same random number generator seed, and randomness 
 and SHAP values that aids in interpretation.
 
 Splits happen the watershed level, such that every storm at a given gage lands on the same side of
-the split, preventing leakage of watershed information into the train set. Grouping by gage forces
-the test watersheds to be entirely unseen, not just storms. Performance metrics therefore measure
-spatial transferability, which matters for inference time, where predictions are generated for
+the split, effectively preventing both temporal and spatial data leakage between the train and 
+test set. Grouping by gage forces the test watersheds to be entirely unseen, not just storms. Performance
+metrics therefore measure spatial transferability, which matters for inference time, where predictions are generated for
 watershed(s) unseen by the model.
 
 This model has a stated domain of applicability, with dataset constraints informed by a separate

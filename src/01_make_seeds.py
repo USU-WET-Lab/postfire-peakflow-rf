@@ -1,7 +1,7 @@
 """
 01_make_seeds.py - Step 1 of the post-fire peak flow pipeline 
 
-Builds N random train/test "seeds". For each seed, a fraction of watersheds is held 
+Builds n random train/test "seeds". For each seed, a fraction of watersheds is held 
 out for testing while the rest are what the RF is trained on. Splitting is done at the 
 WATERSHED level (every storm event at a given gage/watershed is stays together on the same side 
 of the split), effectively preventing both temporal and spatial data leakage between the train and 
@@ -10,7 +10,7 @@ test set. Each seed is a unique random split, and subsequent steps train one mod
 Run this once for each withholding percentage you want to compare in step 02 (change WITHHOLD_FRACTION and re-run;
 the folder label is derived from it automatically)
 
-Note: splits are drawn randomly. Leave RANDOM_SEED as None for fresh random splits each re-run, or set it to any interger to make 
+Note: splits are drawn randomly. Leave RANDOM_SEED as None for fresh random splits each re-run, or set it to any integer to make 
 splits re-producible run-to-run. 
 
 Reads: data/<SOURCE_TABLE> (for the GAGE_ID column)
@@ -38,9 +38,8 @@ OUTPUTS = ROOT / "outputs"
 SOURCE_TABLE = "RF_AttributeTable_PeakMag_OptimizedModel.csv"
 N_SEEDS = 100  # number of random train/test splits to generate
 WITHHOLD_FRACTION = 0.2  # fraction of watersheds to withhold for testing (e.g., 0.1 = 10% of watersheds are held out for testing)
-# Output folder label, derived from the fraction so the two can never disagree (0.2 -> "80_20").
-WITHHOLDING = f"{round((1 - WITHHOLD_FRACTION) * 100)}_{round(WITHHOLD_FRACTION * 100)}"
-RANDOM_SEED = None  # set to None for fresh random splits each re-run, or set to any integer to make splits reproducible run-to-run
+WITHHOLDING = f"{round((1 - WITHHOLD_FRACTION) * 100)}_{round(WITHHOLD_FRACTION * 100)}" # DO NOT EDIT THIS LINE, it is derived from the WITHHOLD_FRACTION above
+RANDOM_SEED = None  # set to None for fresh random splits each re-run, or set to any integer (e.g., 42) to make splits reproducible run-to-run
 
 #---------------------------------------main code block ---------------------------------------------------------------------------
 def main(): 

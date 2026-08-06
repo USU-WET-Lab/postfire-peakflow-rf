@@ -3,7 +3,7 @@
 02_optimize_withholding.py - Step 2 of the post-fire peak flow pipeline
 
 Sweeps train/test withholding percentages across all seeds generated in step 01. 
-For each seed, a random forest is trained then evaluated on the test watersheds. 
+For each seed, a random forest is trained and subsequently evaluated on the test watersheds. 
 The R2 and standard deviation of each seed is recorded and saved to a csv for each withholding percentage.
 
 Reads: outputs/seeds/<withholding>/Seed_<x>/wats_test.csv, outputs/seeds/<withholding>/Seed_<x>/wats_train.csv
@@ -25,12 +25,12 @@ OUTPUTS = ROOT / 'outputs'
 
 SOURCE_TABLE = "RF_AttributeTable_PeakMag_FullDataste_trimmed.csv"  # correlated features already removed
 METRIC = "PeakArea"  #modeling target (log-transformed)
-ID_COL = "GAGE_ID"  # watershed key; dropped from the feature matrix
-N_SEEDS = 100  # number of random train/test splits to generate
+ID_COL = "GAGE_ID"  # watershed key; dropped from the feature set before training the RF
+N_SEEDS = 100  # number of random train/test splits generated in step 01, leave as is unless step 1 n-seeds was changed
 WITHHOLDINGS = ['50_50', '60_40',  '70_30', '80_20', '90_10']  # list of withholding percentages to sweep across
 RF_KWARGS = dict(n_estimators=100, random_state=42)  # keyword arguments for the random forest regressor
 
-#model domain of applicability bounds (applied to the source table before splitting into train/test seeds, see README for details)
+#model domain of applicability bounds (applied to the source table before splitting into train/test seeds, see README and Paper for details)
 BOUNDS = dict(min_drain_sqkm = 50, min_burned_storm_depth_per = 70, 
               max_days_since_fire = 1095, min_mtbs_burnedarea_per = 20) 
 
