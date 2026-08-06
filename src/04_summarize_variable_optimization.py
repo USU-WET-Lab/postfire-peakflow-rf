@@ -95,6 +95,37 @@ def average_ranks(dirs, n):
                  .rename("mean_rank")
                  .reset_index())
 
+def write_selection_template(ranking, n_keep, path):
+    header =  header = ["# Feature set for the final model (steps 05-07).",
+              "# One feature per line; '#' comments a line out. Order does not matter.",
+              f"# Pre-filled with the top {n_keep} features by average rank across seeds.",
+              "#",
+              "# EDIT BY HAND. Two judgments belong here:",
+              "#   1. the feature count, read off the left edge of the plateau in r2_curve.png",
+              "#   2. any variable central to the research question (e.g. burn variables) that",
+              "#      the ranking alone would have dropped -- uncomment it.",
+              "# Then run: python src/04b_build_model_table.py",
+              ""]
+    lines = [f"{'' if i <= n_keep else '# '}{feature}"
+             for i, feature in enumerate(ranking["feature"], start=1)]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(header + lines) + "\n")
+ header = ["# Feature set for the final model (steps 05-07).",
+              "# One feature per line; '#' comments a line out. Order does not matter.",
+              f"# Pre-filled with the top {n_keep} features by average rank across seeds.",
+              "#",
+              "# EDIT BY HAND. Two judgments belong here:",
+              "#   1. the feature count, read off the left edge of the plateau in r2_curve.png",
+              "#   2. any variable central to the research question (e.g. burn variables) that",
+              "#      the ranking alone would have dropped -- uncomment it.",
+              "# Then run: python src/04b_build_model_table.py",
+              ""]
+    lines = [f"{'' if i <= n_keep else '# '}{feature}"
+             for i, feature in enumerate(ranking["feature"], start=1)]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(header + lines) + "\n")
+
+
 
 #---------------------------------------------MAIN CODE BLOCK-------------------------------------------------------------
 
@@ -140,6 +171,15 @@ def main():
         written += 1
 
     print(f"Wrote the R2 curve and {written} ranking tables to {out_dir}")
+
+    n_keep = TEMPLATE_N_FEATURES or int_best 
+    full_ranking = average_ranks(dirs, int(r2.index.max()))
+    if full_ranking is not None and not SELECTION_FILE.exists():
+        write_selection_template(full_ranking, n_keep, SELECTION_FILE)
+        print(f"Wrote a template selection file for {n_keep} features to {SELECTION_FILE}. "
+              f"Edit this file to pick the final feature set, then run step 04b to build the final model table.")
+    elif full_ranking is None: 
+        print(f"{SELECTION_FILE} already exists, delete it to regenerate)") 
 
 
 if __name__ == "__main__":
