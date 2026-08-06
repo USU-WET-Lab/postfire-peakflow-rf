@@ -1,12 +1,13 @@
 """
 03_optimize_variables.py - Step 3 of the post-fire peak flow pipeline
-Recursive featue elimination, run independently for each seed generated in step 01. 
-Start from the full set of features, we train a RF, record the oerfirmance and the feature-importance ranking, 
-drop the least important feature, and repeat down to a single feature. For each seed, the R2 and stdev of each
-iteration is recorded and saved to a csv, along with the feature importance ranking. This step lets us see how 
-model performance changes as we remove features, and which features are most important, informing the final feature set used in step 04.
 
-Feature selection itsels is a manual step performed AFTER this script is run, see README and step 04 for details.
+Recursive feature elimination, run independently for each seed generated in step 01. 
+Starting from the set of features shipped with this repo, train a RF, record the performance and the feature-importance ranking, 
+drop the least important feature, and repeat down to a single feature. For each seed, the R2 and stdev of each
+iteration is recorded and saved to a csv, along with the feature importance ranking. This step demonstrates how 
+model performance changes as features are removed, and which features are most important, informing the final feature set used in step 04.
+
+Feature selection itself is a manual step performed AFTER this script is run, see README and step 04 for details.
 
 Warning: this script is computationally expensive and will take a long time to run. 
 
@@ -35,9 +36,9 @@ SOURCE_TABLE = 'RF_AttributeTable_PeakMag_FullDataste_trimmed.csv'  # source tab
 METRIC = "PeakArea"  #modeling target (log-transformed)
 ID_COL = "GAGE_ID"  # column name for the watershed identifier
 N_SEEDS = 100  # number of random train/test splits to generate
-WITHHOLDING = "80_20"  # string to describe the withholding fraction (e.g., "90_10" for 10% held out, "80_20" for 20% held out)
+# this is the optimized percentage if using source table shipped with this repo.
+WITHHOLDING = "80_20"  # keep as is unless you changed data 
 RF_KWARGS = dict(n_estimators=100, random_state=42) 
-
 #Model domain of applicability bounds (applied to the source table before splitting into train/test seeds, see README for details)
 BOUNDS = dict(min_drain_sqkm = 50, min_burned_area_pct = 20, min_burned_storm_depth_pct = 70, max_days_since_fire = 1095)
 

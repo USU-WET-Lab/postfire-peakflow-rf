@@ -1,23 +1,20 @@
 """
 04_summarize_variable_optimization.py - Step 4 of the post-fire peak flow pipeline
 
-Aggregates the recursive feature elimination output from step 03 into the two things you need to
+Aggregates the recursive feature elimination output from step 03 into the two things needed to
 pick a final feature set:
 
   1. An R2-versus-feature-count curve, one line per seed plus the across-seed mean. Performance
-     usually climbs steeply over the first few features, plateaus, then drifts as noise features
-     are added back. The left edge of that plateau is the target: the fewest features that keep
-     essentially all the skill.
+     climbs steeply over the first few features, plateaus, then drifts as noise features
+     are added back. The left edge of that plateau is what to look for: the fewest features that keep
+     the prediction skill without adding noise. The mean R2 is saved to a csv and plotted to a png.
 
-  2. An average feature ranking at each feature count. Within a seed, a feature's rank is its
-     position in that seed's importance table (1 = most important); features already eliminated in
-     that seed are given a penalty rank of n_features + 1 so they sort last. Averaging rank across
-     seeds is more robust than averaging raw importance, which is on an arbitrary scale that
-     shifts as the feature set shrinks.
+  2. An average feature ranking at each feature count.
 
-FEATURE SELECTION ITSELF IS MANUAL. This script produces the evidence; a human reads the curve,
-picks a feature count, and may deliberately keep domain-critical variables (e.g. burn variables)
-that the ranking alone would have dropped. The chosen set is then saved by hand as
+FEATURE SELECTION IS MANUAL. This script produces the information needed to pick a final feature set.
+You will need to look at the R2 curve and the average rankings, pick a feature count, then pick the features 
+to keep at that count. This may be the top-ranked features, but you may also keep features that rank lower but are 
+critical to the research question (e.g., burn variables). The final feature set is saved by hand as 
 data/RF_AttributeTable_PeakMag_OptimizedModel.csv, which is what step 05 reads.
 
 Reads:  outputs/variable_optimization/Seed_<x>/Stats_Vars<n>.csv
@@ -47,21 +44,12 @@ FIGSIZE = (7, 5)
 #---------------------------------------------LOADING-------------------------------------------------------------
 
 def seed_dirs():
-    """Every Seed_<x> folder step 03 produced, sorted by seed number rather than by name.
-
-    Sorting by name would put Seed_10 before Seed_2; sorting by the trailing integer keeps the
-    columns in run order.
-    """
+    """Return a sorted list of the Seed_<x> directories under RUN_DIR."""
     dirs = [d for d in RUN_DIR.glob("Seed_*") if d.is_dir()]
     return sorted(dirs, key=lambda d: int(d.name.split("_")[1]))
 
 
 def feature_counts(seed_dir):
-    """The feature counts n for which this seed has a Stats_Vars<n>.csv, ascending.
-
-    Discovered from the filenames rather than assumed, so this works for any starting feature
-    count without a hard-coded range.
-    """
     counts = [int(f.stem.replace("Stats_Vars", "")) for f in seed_dir.glob("Stats_Vars*.csv")]
     return sorted(counts)
 
@@ -82,11 +70,6 @@ def r2_by_feature_count(dirs):
 
 
 def average_ranks(dirs, n):
-    """Mean importance rank per feature at a given feature count, across seeds.
-
-    Rank is 1-based position in a seed's importance table. Features missing from a seed (already
-    eliminated there) get n_features + 1 so they sort below anything that survived.
-    """
     ranks_by_seed = {}
     for seed_dir in dirs:
         importances_file = seed_dir / f"Importances_Vars{n}.csv"
@@ -145,8 +128,7 @@ def main():
     plt.close(fig)
 
     best = r2_mean.idxmax()
-    print(f"Mean R2 peaks at {best} features (R2 = {r2_mean.loc[best]:.3f}); "
-          f"read the curve for the plateau, do not just take the peak")
+    print(f"Mean R2 peaks at {best} features (R2 = {r2_mean.loc[best]:.3f}); ")
 
     # 2. Average feature ranking at each feature count.
     written = 0
@@ -157,7 +139,7 @@ def main():
         ranking.to_csv(rankings_dir / f"average_rank_vars{n}.csv", index=False)
         written += 1
 
-    print(f"Done! Wrote the R2 curve and {written} ranking tables to {out_dir}")
+    print(f"Wrote the R2 curve and {written} ranking tables to {out_dir}")
 
 
 if __name__ == "__main__":
