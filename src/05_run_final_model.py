@@ -1,11 +1,13 @@
 """
 05_run_final_model.py - Step 5 of the post-fire peak flow pipeline
 
-Using the optimized feature table from step 04, we train the final model. This step trains one
+Using the optimized feature table from step 04, train the final model(s). This step trains one
 random forest per seed (with the train/test split from step 01) and for each seed: writes
 performance stats, test predictions, feature importances, two diagnostic plots, and SHAP values.
 The per-seed outputs from this step feed subsequent summary steps (08, 09, 10). The target
 is log-transformed for fitting in log space.
+
+ONCE FINAL FEATURES ARE PICKED, WRITE COLUMNS TO DROP INTO DROP_COLUMNS BELOW. This is the only config change needed to run the final model.
 
 Reads: data / <MODEL_TABLE>
        outputs/seeds/<WITHHOLDING>/Seed_<x>/wats_train.csv, wats_test.csv
@@ -25,7 +27,7 @@ Run: python src/05_run_final_model.py
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from rf_utils import (fit_rf, evaluate, ranked_importances, compute_shap,
+from rf_utils import (load_model_table, fit_rf, evaluate, ranked_importances, compute_shap,
                       shap_frames, plot_predicted_vs_actual, plot_residuals)
 
 #-------------------------------------------CONFIG: only edit this block ---------------------------------------------------------------------------
@@ -33,24 +35,17 @@ ROOT    = Path(__file__).resolve().parent.parent   # repo root; auto-derives, no
 DATA    = ROOT / "data"
 OUTPUTS = ROOT / "outputs"
 
-MODEL_TABLE = "RF_AttributeTable_PeakMag_OptimizedModel.csv"   # final optimized feature set
+MODEL_TABLE = "RF_AttributeTable_PeakMag_OptimizedModel.csv"  # final optimized feature set
 METRIC      = "PeakArea"
 ID_COL      = "GAGE_ID"
 N_SEEDS     = 100
 WITHHOLDING  = "80_20"
 RF_KWARGS   = dict(n_estimators=100, random_state=42)
 
-# Columns to drop before fitting (kept out of the final model). Missing names are ignored,
-# so this stays valid across attribute tables that do not carry every column.
-DROP_COLUMNS = ["ASPECT_NORTHNESS"]
-
-
 #---------------------------------------------MAIN CODE BLOCK-------------------------------------------------------------
 
 def main():
-    data = pd.read_csv(DATA / MODEL_TABLE)
-    if DROP_COLUMNS:
-        data = data.drop(columns = DROP_COLUMNS, errors = "ignore")
+    data = load_model_table(DATA / MODEL_TABLE)
     features = [c for c in data.columns if c not in (METRIC, ID_COL)]
 
     for x in range(N_SEEDS):

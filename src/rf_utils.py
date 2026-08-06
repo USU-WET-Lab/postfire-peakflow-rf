@@ -37,6 +37,7 @@ def load_model_table(path):
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f"{path} not found. Please run step 04b to build the model table first.")
+    return pd.read_csv(path)
 
 #---------------------------------------SHAP------------------------------------------------------------------
 def compute_shap(model, X): 

@@ -20,7 +20,7 @@ Writes: outputs/sensitivity/sensitivity_predictions_USGS<WATERSHED>.csv
 from pathlib import Path 
 import numpy as np 
 import pandas as pd 
-from rf_utils import fit_rf
+from rf_utils import fit_rf, load_model_table
 
 #-------------------------------------------------CONFIG--------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent # repo root; auto-derives, no need to edit
@@ -67,7 +67,7 @@ def main():
     scenarios = build_sensitivity_set(baseline)
 
     # 2. Load training data and pin the feature columns (order matters for sklearn).
-    data     = pd.read_csv(DATA / MODEL_TABLE)
+    data     = load_model_table(DATA / MODEL_TABLE)
     features = [c for c in data.columns if c not in (METRIC, ID_COL)]
     X_scen   = scenarios[features].astype(float)   # selecting `features` drops metadata
 
