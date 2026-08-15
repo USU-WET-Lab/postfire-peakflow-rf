@@ -11,11 +11,12 @@ pick a final feature set:
 
   2. An average feature ranking at each feature count.
 
-FEATURE SELECTION IS MANUAL. This script produces the information needed to pick a final feature set.
-You will need to look at the R2 curve and the average rankings, pick a feature count, then pick the features 
-to keep at that count. This may be the top-ranked features, but you may also keep features that rank lower but are 
-critical to the research question (e.g., burn variables). The final feature set is saved by hand as 
-data/RF_AttributeTable_PeakMag_OptimizedModel.csv, which is what step 05 reads.
+FEATURE SELECTION IS MANUAL. This script produces the information needed to pick a final feature set
+and writes config/selected_features.txt as a starting point: every candidate feature in average-rank
+order, with the top n left enabled and the rest commented out. You look at the R2 curve and the
+rankings, then edit that file -- adjusting the count, and uncommenting any variable that is critical
+to the research question (e.g. burn variables) even though it ranks lower. Step 04b turns the edited
+list into the attribute table steps 05-07 read.
 
 Reads:  outputs/variable_optimization/Seed_<x>/Stats_Vars<n>.csv
         outputs/variable_optimization/Seed_<x>/Importances_Vars<n>.csv
@@ -24,6 +25,7 @@ Writes: outputs/variable_optimization_summary/r2_by_feature_count.csv   (rows = 
         outputs/variable_optimization_summary/r2_mean.csv               (feature count, mean R2)
         outputs/variable_optimization_summary/r2_curve.png
         outputs/variable_optimization_summary/rankings/average_rank_vars<n>.csv
+        config/selected_features.txt   (only if absent; edit this, it is the manual step)
 
 Run: python src/04_summarize_variable_optimization.py
 
@@ -40,6 +42,15 @@ OUTPUTS = ROOT / "outputs"
 
 RUN_DIR = OUTPUTS / "variable_optimization"   # where step 03 wrote its per-seed folders
 FIGSIZE = (7, 5)
+
+# Step 04 writes a ready-to-edit feature list here; step 04b reads it back. Editing this file
+# is the manual selection step.
+SELECTION_FILE = ROOT / "config" / "selected_features.txt"
+
+# How many features to leave enabled in that template. None = the count where mean R2 peaks,
+# which is only a starting point: you want the LEFT EDGE of the plateau, usually fewer. Set
+# this to your chosen count once you have read r2_curve.png, or just edit the file by hand.
+TEMPLATE_N_FEATURES = None
 
 #---------------------------------------------LOADING-------------------------------------------------------------
 
@@ -96,21 +107,7 @@ def average_ranks(dirs, n):
                  .reset_index())
 
 def write_selection_template(ranking, n_keep, path):
-    header =  header = ["# Feature set for the final model (steps 05-07).",
-              "# One feature per line; '#' comments a line out. Order does not matter.",
-              f"# Pre-filled with the top {n_keep} features by average rank across seeds.",
-              "#",
-              "# EDIT BY HAND. Two judgments belong here:",
-              "#   1. the feature count, read off the left edge of the plateau in r2_curve.png",
-              "#   2. any variable central to the research question (e.g. burn variables) that",
-              "#      the ranking alone would have dropped -- uncomment it.",
-              "# Then run: python src/04b_build_model_table.py",
-              ""]
-    lines = [f"{'' if i <= n_keep else '# '}{feature}"
-             for i, feature in enumerate(ranking["feature"], start=1)]
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(header + lines) + "\n")
- header = ["# Feature set for the final model (steps 05-07).",
+    header = ["# Feature set for the final model (steps 05-07).",
               "# One feature per line; '#' comments a line out. Order does not matter.",
               f"# Pre-filled with the top {n_keep} features by average rank across seeds.",
               "#",
@@ -172,14 +169,14 @@ def main():
 
     print(f"Wrote the R2 curve and {written} ranking tables to {out_dir}")
 
-    n_keep = TEMPLATE_N_FEATURES or int_best 
+    n_keep = TEMPLATE_N_FEATURES or int(best)
     full_ranking = average_ranks(dirs, int(r2.index.max()))
     if full_ranking is not None and not SELECTION_FILE.exists():
         write_selection_template(full_ranking, n_keep, SELECTION_FILE)
         print(f"Wrote a template selection file for {n_keep} features to {SELECTION_FILE}. "
               f"Edit this file to pick the final feature set, then run step 04b to build the final model table.")
-    elif full_ranking is None: 
-        print(f"{SELECTION_FILE} already exists, delete it to regenerate)") 
+    elif full_ranking is not None:
+        print(f"{SELECTION_FILE} already exists; left it alone. Delete it to regenerate.")
 
 
 if __name__ == "__main__":

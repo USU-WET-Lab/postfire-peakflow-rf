@@ -65,4 +65,8 @@ def main():
     print(f"Wrote final model table to {DATA / MODEL_TABLE} ({len(table)} rows, {len(features)} features) "
             f"from {n_all} rows in {SOURCE_TABLE} after applying bounds: {APPLY_BOUNDS}")
 
+
+if __name__ == "__main__":
+    main()
+
     

@@ -33,30 +33,28 @@ Run: python src/06_run_model_by_watershed.py
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from rf_utils import fit_rf, evaluate, ranked_importances, compute_shap, shap_frames
+from rf_utils import (load_model_table, fit_rf, evaluate, ranked_importances,
+                      compute_shap, shap_frames)
 
 #-------------------------------------------CONFIG: only edit this block ---------------------------------------------------------------------------
 ROOT    = Path(__file__).resolve().parent.parent   # repo root; auto-derives, no need to edit
 DATA    = ROOT / "data"
 OUTPUTS = ROOT / "outputs"
 
-MODEL_TABLE = "RF_AttributeTable_PeakMag_OptimizedModel.csv"   # final optimized feature set
+MODEL_TABLE = "RF_AttributeTable_PeakMag_OptimizedModel.csv"   # built by step 04b
 METRIC      = "PeakArea"
 ID_COL      = "GAGE_ID"
 N_SEEDS     = 100
 WITHHOLDING = "80_20"
 RF_KWARGS   = dict(n_estimators=100, random_state=42)
 
-# Columns to drop before fitting. Keep this in step with step 05 so both runs model the same thing.
-DROP_COLUMNS = ["ASPECT_NORTHNESS"]
-
+# Feature selection lives in config/selected_features.txt (step 04b), so this run and step 05
+# model the same thing by construction -- there is nothing to keep in step by hand.
 
 #---------------------------------------------MAIN CODE BLOCK-------------------------------------------------------------
 
 def main():
-    data = pd.read_csv(DATA / MODEL_TABLE)
-    if DROP_COLUMNS:
-        data = data.drop(columns = DROP_COLUMNS, errors = "ignore")
+    data = load_model_table(DATA / MODEL_TABLE)
     features = [c for c in data.columns if c not in (METRIC, ID_COL)]
 
     for x in range(N_SEEDS):

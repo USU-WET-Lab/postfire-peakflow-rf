@@ -1,13 +1,15 @@
 """
 05_run_final_model.py - Step 5 of the post-fire peak flow pipeline
 
-Using the optimized feature table from step 04, train the final model(s). This step trains one
+Using the optimized feature table from step 04b, train the final model(s). This step trains one
 random forest per seed (with the train/test split from step 01) and for each seed: writes
 performance stats, test predictions, feature importances, two diagnostic plots, and SHAP values.
 The per-seed outputs from this step feed subsequent summary steps (08, 09, 10). The target
 is log-transformed for fitting in log space.
 
-ONCE FINAL FEATURES ARE PICKED, WRITE COLUMNS TO DROP INTO DROP_COLUMNS BELOW. This is the only config change needed to run the final model.
+Feature selection does not happen here. Pick the features in config/selected_features.txt
+(step 04), build the table with step 04b, and this script models every column in that table
+that is not the target or the ID. Run step 04b before this one.
 
 Reads: data / <MODEL_TABLE>
        outputs/seeds/<WITHHOLDING>/Seed_<x>/wats_train.csv, wats_test.csv
