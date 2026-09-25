@@ -1,0 +1,18 @@
+# the list of 16 features that the final paper faithful model is trained on 
+
+AntecedentPrecip_mm
+DaysSinceFire
+D1
+CoefVar
+MTBS_burnedarea_per
+burned_storm_depth_per
+burned_storm_int_per
+DRAIN_SQKM
+PPTAVG_BASIN
+RH_BASIN
+SNOW_PCT_PRECIP
+PRECIP_SEAS_IND
+AvgMonthly_Precip_cm
+riparian_area_per
+SBS_mod_high_area_burned_per_wat
+ratio_LAI
