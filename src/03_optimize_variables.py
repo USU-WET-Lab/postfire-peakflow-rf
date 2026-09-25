@@ -25,14 +25,15 @@ Run: python src/03_optimize_variables.py
 from pathlib import Path
 import numpy as np
 import pandas as pd
-from rf_utils import fit_rf, evaluate, ranked_importances
+from rf_utils import fit_rf, evaluate, ranked_importances, table_loader, filter_bounds, read_selection
 
 #-------------------------------------------CONFIG: only edit this block ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent # repo root; auto-derives, no need to edit
 DATA = ROOT / 'data'
 OUTPUTS = ROOT / 'outputs'
-
-SOURCE_TABLE = 'RF_AttributeTable_PeakMag_FullDataste_trimmed.csv'  # source table to use for model training and evaluation
+FEATURES_FILE = "config/feature_list.txt"  # the feature list used in steps 02 and 03, used here to check that the source table has all the features needed for modeling
+SOURCE_TABLE = "data/RF_AttributeTable_PeakMag_FullDataset.csv"  # the source table to draw watersheds from, must be in data/
+SOURCE_TABLE = 'data/RF_AttributeTable_PeakMag_FullDataset_trimmed.csv'  # source table to use for model training and evaluation
 METRIC = "PeakArea"  #modeling target (log-transformed)
 ID_COL = "GAGE_ID"  # column name for the watershed identifier
 N_SEEDS = 100  # number of random train/test splits to generate

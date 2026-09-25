@@ -5,7 +5,7 @@ The code that lives here is called by multiple steps within the pipeline. Only m
 The main functions here perform the model fitting, scoring, raking importances, computing SHAP values,
 reloading saved SHAP values, and generating two standard diagnostic plots.
 
-Imported by steps 02, 03, 05, 06, 07, 09, 10, and 11
+Imported by steps 01, 02, 03, 04b, 05, 06, 07, 09, 10, and 11
 
 """
 
@@ -17,7 +17,50 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 import shap
 
+# ---------------------------------------Feature Selection-------------------------------------------------------
+def read_selection(path): 
+    """Read a config feature list: one feature per line, '#' comments a line out."""
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Selection file {path} does not exist. Did you delete it?")
+    stripped = [line.split("#", 1)[0].strip() for line in path.read_text().splitlines()]
+    features = [line for line in stripped if line]
+    if not features:
+        raise ValueError(f"No features found in selection file {path}.")
+    # One feature per LINE. A comma means several names landed on one line, which would
+    # otherwise sail through as a single nonexistent column name.
+    commas = [f for f in features if "," in f]
+    if commas:
+        raise ValueError(f"One feature per line in {path}; these hold several: {commas}")
+    return features
+
+def table_loader(path, features, id_col = "GAGE_ID", metric = "PeakArea"): 
+    """Load a CSV table from the given path, takes a feature list and subsets the table to those features plus the ID column'"""
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"{path} not found.")
+    df = pd.read_csv(path)
+    missing = [c for c in [id_col, metric] + features if c not in df.columns]
+    if missing: 
+        raise ValueError(f"requested columns are not in {path}: {missing}")
+    return df[[id_col, metric] + features]
+
 #---------------------------------------Model-----------------------------------------------------------------
+
+# A model bounds filter and dict 
+
+#DICTIONARY OF BOUNDS:
+BOUNDS = dict(min_drain_sqkm = 50, min_burned_area_pct = 20, min_burned_storm_depth_pct = 70, 
+              max_days_since_fire = 1095)
+
+def filter_bounds(df, bounds = BOUNDS):
+    """Filter a dataframe to the bounds specified in the bounds dict."""
+    return df[(df.DRAIN_SQKM >= bounds['min_drain_sqkm']) &
+              (df.MTBS_burnedarea_per >= bounds['min_burned_area_pct']) &
+              (df.burned_storm_depth_per >= bounds['min_burned_storm_depth_pct']) &
+              (df.DaysSinceFire <= bounds['max_days_since_fire'])]  
+# RF model fitting and evaluation functions
+
 def fit_rf(X_train, y_train, **kwargs): 
     model = RandomForestRegressor(**kwargs)
     model.fit(X_train, y_train) 

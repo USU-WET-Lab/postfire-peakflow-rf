@@ -31,14 +31,15 @@ To Run: python src/01_make_seeds.py
 import pandas as pd
 import random
 from pathlib import Path
-
+from rf_utils import read_selection, table_loader, filter_bounds 
 
 #--------------------------------------- config: only edit this block ---------------------------------------------------------------------------
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 OUTPUTS = ROOT / "outputs"
-SOURCE_TABLE = "RF_AttributeTable_PeakMag_FullDataste_trimmed.csv"  # same source as steps 02 and 03
+FEATURES_FILE = "config/feature_list.txt"  # the feature list used in steps 02 and 03, used here to check that the source table has all the features needed for modeling
+SOURCE_TABLE = "data/RF_AttributeTable_PeakMag_FullDataset.csv" # the source table to draw watersheds from, must be in data/
 N_SEEDS = 100  # number of random train/test splits to generate
 WITHHOLD_FRACTION = 0.2  # fraction of watersheds to withhold for testing (e.g., 0.1 = 10% of watersheds are held out for testing)
 WITHHOLDING = f"{round((1 - WITHHOLD_FRACTION) * 100)}_{round(WITHHOLD_FRACTION * 100)}" # DO NOT EDIT THIS LINE, it is derived from the WITHHOLD_FRACTION above

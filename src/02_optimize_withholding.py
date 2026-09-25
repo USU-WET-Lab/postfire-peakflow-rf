@@ -16,14 +16,14 @@ Run: python src/02_optimize_withholding.py
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from rf_utils import fit_rf, evaluate
+from rf_utils import fit_rf, evaluate, table_loader, filter_bounds, read_selection
 
 # -------------------------------------------CONFIG: only edit this block ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent # repo root; auto-derives, no need to edit
 DATA = ROOT / 'data'
 OUTPUTS = ROOT / 'outputs'
-
-SOURCE_TABLE = "RF_AttributeTable_PeakMag_FullDataste_trimmed.csv"  # correlated features already removed
+FEATURES_FILE = "config/feature_list.txt"  # the feature list used in steps 02 and 03, used here to check that the source table has all the features needed for modeling
+SOURCE_TABLE = "data/RF_AttributeTable_PeakMag_FullDataset.csv"  # the source table to draw watersheds from, must be in data/
 METRIC = "PeakArea"  #modeling target (log-transformed)
 ID_COL = "GAGE_ID"  # watershed key; dropped from the feature set before training the RF
 N_SEEDS = 100  # number of random train/test splits generated in step 01, leave as is unless step 1 n-seeds was changed
@@ -42,7 +42,7 @@ def main ():
             (df.MTBS_burnedarea_per >= BOUNDS["min_mtbs_burnedarea_per"]) &
             (df.burned_storm_depth_per >= BOUNDS["min_burned_storm_depth_per"]) &
             (df.DaysSinceFire <= BOUNDS["max_days_since_fire"])]
-    features = [c for c in df.columns if c not in (METRIC, ID_COL)]
+    features = 
 
     out_dir = OUTPUTS / "withholding_optimization" 
     out_dir.mkdir(exist_ok= True, parents = True)
