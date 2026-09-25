@@ -1,12 +1,9 @@
-# local claude code instructions, do not publish
-CLAUDE.md
-#Draft Manuscript, do not publish
-PostFireFloodDrivers_15June_clean_jtk - Copy.docx
-# internal pipeline explainer, do not publish
-PIPELINE.md
 
 # pipeline outputs: every script writes under outputs/ (seeds, model runs, summaries, figures)
 outputs/
+
+#OGscripts (authored by Haley)
+RFModel_CopyOfScripts
 
 # the usual cruft
 __pycache__/
