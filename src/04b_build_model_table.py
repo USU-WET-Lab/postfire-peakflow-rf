@@ -27,8 +27,8 @@ from rf_utils import read_selection, filter_bounds, BOUNDS
 ROOT = Path(__file__).resolve().parent.parent   # repo root; auto-derives, no need to edit
 DATA = ROOT / "data"
 SELECTION_FILE = ROOT / "config" / "selected_features.txt"
-SOURCE_TABLE = "RF_AttributeTable_PeakMag_FullDataste_trimmed.csv" 
-MODEL_TABLE = "RF_AttributeTable_PeakMag_OptimizedModel.csv"  # final optimized feature set
+SOURCE_TABLE = "data/RF_AttributeTable_PeakMag_FullDataset_trimmed.csv" 
+MODEL_TABLE = "outputs/RF_AttributeTable_PeakMag_OptimizedModel.csv"  # final optimized feature set
 METRIC = "PeakArea"
 ID_COL = "GAGE_ID"
 
