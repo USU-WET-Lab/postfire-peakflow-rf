@@ -30,20 +30,12 @@ N_SEEDS = 100  # number of random train/test splits generated in step 01, leave 
 WITHHOLDINGS = ['50_50', '60_40',  '70_30', '80_20', '90_10']  # list of withholding percentages to sweep across
 RF_KWARGS = dict(n_estimators=100, random_state=42)  # keyword arguments for the random forest regressor
 
-#model domain of applicability bounds (applied to the source table before splitting into train/test seeds, see README and Paper for details)
-BOUNDS = dict(min_drain_sqkm = 50, min_burned_storm_depth_per = 70, 
-              max_days_since_fire = 1095, min_mtbs_burnedarea_per = 20) 
-
 #--------------------------------------------MAIN CODE BLOCK ---------------------------------------------------------------------------
 
 def main (): 
-    df = pd.read_csv(DATA / SOURCE_TABLE )
-    df = df[(df.DRAIN_SQKM >= BOUNDS["min_drain_sqkm"]) &
-            (df.MTBS_burnedarea_per >= BOUNDS["min_mtbs_burnedarea_per"]) &
-            (df.burned_storm_depth_per >= BOUNDS["min_burned_storm_depth_per"]) &
-            (df.DaysSinceFire <= BOUNDS["max_days_since_fire"])]
-    features = 
-
+    features = read_selection(FEATURES_FILE)
+    df = table_loader(SOURCE_TABLE, features, id_col = ID_COL, metric = METRIC)
+    df = filter_bounds(df)
     out_dir = OUTPUTS / "withholding_optimization" 
     out_dir.mkdir(exist_ok= True, parents = True)
 

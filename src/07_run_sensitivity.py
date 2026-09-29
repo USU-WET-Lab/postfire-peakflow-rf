@@ -28,7 +28,6 @@ DATA = ROOT / 'data'
 OUTPUTS = ROOT / 'outputs'
 
 MODEL_TABLE = "RF_AttributeTable_PeakMag_OptimizedModel.csv" # training data
-SENSITIVITY_TABLE = "RF_AttributeTable_Sensitivity_9361000.csv" #baseline scenario
 WATERSHED = 9361000
 METRIC = "PeakArea"
 ID_COL = "GAGE_ID"
@@ -63,7 +62,7 @@ def build_sensitivity_set(baseline: pd.DataFrame) -> pd.DataFrame:
 
 def main():
     # 1. Build the synthetic scenario set from the baseline attributes.
-    baseline  = pd.read_csv(DATA / SENSITIVITY_TABLE)
+    baseline  = pd.read_csv(DATA / MODEL_TABLE).query(f"{ID_COL} == {WATERSHED}")
     scenarios = build_sensitivity_set(baseline)
 
     # 2. Load training data and pin the feature columns (order matters for sklearn).

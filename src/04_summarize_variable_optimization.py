@@ -111,7 +111,7 @@ def write_selection_template(ranking, n_keep, path):
               "# One feature per line; '#' comments a line out. Order does not matter.",
               f"# Pre-filled with the top {n_keep} features by average rank across seeds.",
               "#",
-              "# EDIT BY HAND. Two judgments belong here:",
+              "# EDIT BY HAND ",
               "#   1. the feature count, read off the left edge of the plateau in r2_curve.png",
               "#   2. any variable central to the research question (e.g. burn variables) that",
               "#      the ranking alone would have dropped -- uncomment it.",

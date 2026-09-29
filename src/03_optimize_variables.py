@@ -37,21 +37,14 @@ SOURCE_TABLE = 'data/RF_AttributeTable_PeakMag_FullDataset_trimmed.csv'  # sourc
 METRIC = "PeakArea"  #modeling target (log-transformed)
 ID_COL = "GAGE_ID"  # column name for the watershed identifier
 N_SEEDS = 100  # number of random train/test splits to generate
-# this is the optimized percentage if using source table shipped with this repo.
-WITHHOLDING = "80_20"  # keep as is unless you changed data 
+WITHHOLDING = "80_20"  # the withholding percentage, this is the optimized percentage if data remains the same as the repo, otherwise change to the withholding percentage used in step 01
 RF_KWARGS = dict(n_estimators=100, random_state=42) 
-#Model domain of applicability bounds (applied to the source table before splitting into train/test seeds, see README for details)
-BOUNDS = dict(min_drain_sqkm = 50, min_burned_area_pct = 20, min_burned_storm_depth_pct = 70, max_days_since_fire = 1095)
-
 #---------------------------------------------MAIN CODE BLOCK ---------------------------------------------------------------------------
 
 def main(): 
     #load the full trimmed feature table and restrict to the model domain of applicability
-    df = pd.read_csv(DATA / SOURCE_TABLE)
-    df = df[(df.DRAIN_SQKM >= BOUNDS['min_drain_sqkm']) &
-            (df.MTBS_burnedarea_per >= BOUNDS['min_burned_area_pct']) &
-            (df.burned_storm_depth_per >= BOUNDS['min_burned_storm_depth_pct']) &
-            (df.DaysSinceFire <= BOUNDS['max_days_since_fire'])]
+    df = table_loader(SOURCE_TABLE, read_selection(FEATURES_FILE), id_col = ID_COL, metric = METRIC)
+    df = filter_bounds(df)
     n_start = df.shape[1] - 2 # remove the ID column and metric columns (not features)
     for x in range(N_SEEDS): 
         seed_dir = OUTPUTS / "seeds" / WITHHOLDING / f"Seed_{x}"
@@ -84,9 +77,5 @@ def main():
 
         print(f"seed {x}: reduced {n_start} features -> 1")
 
-if __name__ == "__main__": 
-    main()
-
-        
 
        
